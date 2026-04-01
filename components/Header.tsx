@@ -5,6 +5,12 @@ import { FilePlus, FolderOpen, Menu, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/useStore";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Header() {
   const { saveState, saveAsState, loadState, resetState } = useStore();
@@ -24,63 +30,49 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-4">
-      <details className="relative">
-        <summary className="list-none">
-          <Button type="button" variant="outline" size="icon">
-            <Menu className="size-4" />
-          </Button>
-        </summary>
-        <div className="absolute left-0 mt-2 w-44 rounded-md border bg-background p-1 shadow-md">
-          <button
-            type="button"
-            onClick={resetState}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted"
-          >
-            <FilePlus className="mr-2 size-4" />
-            New Project
-          </button>
-          <button
-            type="button"
-            onClick={() => void loadState()}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted"
-          >
-            <FolderOpen className="mr-2 size-4" />
-            Open
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave("save")}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted"
-          >
-            <Save className="mr-2 size-4" />
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave("saveAs")}
-            className="flex w-full items-center rounded px-2 py-1.5 text-sm hover:bg-muted"
-          >
-            <Save className="mr-2 size-4" />
-            Save As
-          </button>
-        </div>
-      </details>
-
+    <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
+      <div className="p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="">
+            <Button variant={"outline"}>
+              <Menu className="size-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={resetState}>
+              {" "}
+              <FilePlus className="size-5 mr-2" />
+              New Project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={loadState}>
+              <FolderOpen className="size-5 mr-2" />
+              Open
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSave("save")}>
+              <Save className="size-5 mr-2" />
+              Save
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSave("saveAs")}>
+              {" "}
+              <Save className="size-5 mr-2" />
+              Save As
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <Input
         type="text"
-        className="h-9 flex-1 text-lg font-semibold"
+        className="text-xl font-semibold border-none"
         value={projectTitle}
-        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           updateProjectTitle(e.target.value)
         }
       />
-
       <Button
         variant="outline"
         size="sm"
-        className="gap-1.5"
-        onClick={() => void handleSave("save")}
+        className="ml-auto gap-1.5 text-sm"
+        onClick={() => handleSave("save")}
       >
         <Save className="size-3.5" />
         Save

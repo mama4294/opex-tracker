@@ -2,6 +2,15 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import Header from "@/components/Header";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/useStore";
@@ -127,124 +136,126 @@ export default function Home() {
         </div>
       </main>
 
-      {isDrawerOpen && (
-        <>
-          <button
-            type="button"
-            aria-label="Close drawer overlay"
-            className="fixed inset-0 bg-black/30"
-            onClick={() => {
-              setIsDrawerOpen(false);
-              resetForm();
-            }}
-          />
-          <aside className="fixed top-0 right-0 z-20 h-full w-full max-w-md border-l bg-card p-5 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
+      <Drawer
+        direction="right"
+        open={isDrawerOpen}
+        onOpenChange={(open) => {
+          setIsDrawerOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DrawerContent className="h-full max-h-dvh max-w-md data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md">
+          <DrawerHeader className="flex flex-row items-center justify-between gap-2 border-b border-border text-left">
+            <div className="space-y-1">
+              <DrawerTitle className="text-lg font-semibold">
                 {editingEntryId ? "Edit Utility Entry" : "Add Utility Entry"}
-              </h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsDrawerOpen(false);
-                  resetForm();
-                }}
-              >
+              </DrawerTitle>
+              <DrawerDescription className="sr-only">
+                {editingEntryId
+                  ? "Update dates, usage, and optional cost for this entry."
+                  : "Enter dates, usage, and optional cost for a new utility entry."}
+              </DrawerDescription>
+            </div>
+            <DrawerClose asChild>
+              <Button type="button" variant="outline" size="sm">
                 Close
               </Button>
-            </div>
+            </DrawerClose>
+          </DrawerHeader>
 
-            <form className="space-y-3" onSubmit={onSubmitEntry}>
-              <Input
-                required
-                type="date"
-                value={formData.dateStart}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    dateStart: e.target.value,
-                  }))
-                }
-              />
-              <Input
-                required
-                type="date"
-                value={formData.dateEnd}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, dateEnd: e.target.value }))
-                }
-              />
-              <select
-                value={formData.utility}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    utility: e.target.value as UtilityType,
-                  }))
-                }
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              >
-                <option value="electricity">electricity</option>
-                <option value="water">water</option>
-                <option value="natural_gas">natural_gas</option>
-                <option value="trash">trash</option>
-              </select>
-              <Input
-                required
-                type="number"
-                min="0"
-                step="any"
-                placeholder="Usage"
-                value={formData.usage}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, usage: e.target.value }))
-                }
-              />
-              <Input
-                required
-                type="text"
-                placeholder="Usage unit (kWh, gal...)"
-                value={formData.usageUnit}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    usageUnit: e.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="text"
-                placeholder="Cost item name (optional)"
-                value={formData.costItemName}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    costItemName: e.target.value,
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                placeholder="Cost total (optional)"
-                value={formData.costItemTotal}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    costItemTotal: e.target.value,
-                  }))
-                }
-              />
+          <form
+            className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
+            onSubmit={onSubmitEntry}
+          >
+            <Input
+              required
+              type="date"
+              value={formData.dateStart}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  dateStart: e.target.value,
+                }))
+              }
+            />
+            <Input
+              required
+              type="date"
+              value={formData.dateEnd}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, dateEnd: e.target.value }))
+              }
+            />
+            <select
+              value={formData.utility}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  utility: e.target.value as UtilityType,
+                }))
+              }
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <option value="electricity">electricity</option>
+              <option value="water">water</option>
+              <option value="natural_gas">natural_gas</option>
+              <option value="trash">trash</option>
+            </select>
+            <Input
+              required
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Usage"
+              value={formData.usage}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, usage: e.target.value }))
+              }
+            />
+            <Input
+              required
+              type="text"
+              placeholder="Usage unit (kWh, gal...)"
+              value={formData.usageUnit}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  usageUnit: e.target.value,
+                }))
+              }
+            />
+            <Input
+              type="text"
+              placeholder="Cost item name (optional)"
+              value={formData.costItemName}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  costItemName: e.target.value,
+                }))
+              }
+            />
+            <Input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="Cost total (optional)"
+              value={formData.costItemTotal}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  costItemTotal: e.target.value,
+                }))
+              }
+            />
+            <DrawerFooter className="mt-auto border-t border-border px-0 pt-4">
               <Button type="submit" className="w-full">
                 {editingEntryId ? "Save Changes" : "Add Utility Entry"}
               </Button>
-            </form>
-          </aside>
-        </>
-      )}
+            </DrawerFooter>
+          </form>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
