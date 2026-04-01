@@ -1,6 +1,5 @@
 "use client";
 
-import type { ChangeEvent } from "react";
 import { FilePlus, FolderOpen, Menu, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,8 +32,8 @@ export default function Header() {
     <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
       <div className="p-2">
         <DropdownMenu>
-          <DropdownMenuTrigger className="">
-            <Button variant={"outline"}>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="icon">
               <Menu className="size-5" />
             </Button>
           </DropdownMenuTrigger>
@@ -64,9 +63,7 @@ export default function Header() {
         type="text"
         className="text-xl font-semibold border-none"
         value={projectTitle}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          updateProjectTitle(e.target.value)
-        }
+        onChange={(e) => updateProjectTitle(e.target.value)}
       />
       <Button
         variant="outline"

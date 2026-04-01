@@ -2,6 +2,11 @@ import { create } from "zustand";
 import type { UtilityEntry } from "@/types/utility";
 import { openFile, saveToFile } from "../utils/fileSystem";
 
+/** Signals ExpenseDrawer to open from anywhere (add vs edit by id). Bump nonce + set intent; drawer consumes and clears intent. */
+export type ExpenseDrawerIntent =
+  | { mode: "add" }
+  | { mode: "edit"; entryId: string };
+
 interface StoreState {
   projectTitle: string;
   utilityEntries: UtilityEntry[];
@@ -13,6 +18,12 @@ interface StoreState {
   saveAsState: () => Promise<void>;
   loadState: () => Promise<void>;
   resetState: () => void;
+  /** Incremented whenever an external component requests opening the expense drawer. */
+  expenseDrawerNonce: number;
+  expenseDrawerIntent: ExpenseDrawerIntent | null;
+  requestExpenseDrawerAdd: () => void;
+  requestExpenseDrawerEdit: (entryId: string) => void;
+  clearExpenseDrawerIntent: () => void;
 }
 
 const electricEntry: UtilityEntry = {
@@ -58,6 +69,19 @@ const initialState = {
 
 export const useStore = create<StoreState>((set) => ({
   ...initialState,
+  expenseDrawerNonce: 0,
+  expenseDrawerIntent: null,
+  requestExpenseDrawerAdd: () =>
+    set((state) => ({
+      expenseDrawerIntent: { mode: "add" },
+      expenseDrawerNonce: state.expenseDrawerNonce + 1,
+    })),
+  requestExpenseDrawerEdit: (entryId: string) =>
+    set((state) => ({
+      expenseDrawerIntent: { mode: "edit", entryId },
+      expenseDrawerNonce: state.expenseDrawerNonce + 1,
+    })),
+  clearExpenseDrawerIntent: () => set({ expenseDrawerIntent: null }),
   setProjectTitle: (title) => set({ projectTitle: title }),
   updateProjectTitle: (title) => set({ projectTitle: title }),
   addUtilityEntry: (entry) =>

@@ -11,6 +11,15 @@ export interface CostItem {
   totalCost: number;
 }
 
+export type CostItemFormRow = {
+  id: string;
+  name: string;
+  category: string;
+  rate: string;
+  quantity: string;
+  totalCost: string;
+};
+
 export interface UtilityEntry {
   id: string;
   dateStart: string;
