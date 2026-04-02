@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Card,
   CardContent,
@@ -16,17 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/store/useStore";
 import type { UtilityType } from "@/types/utility";
-import { Trash2, Pencil, ChevronRight } from "lucide-react";
-import ExpenseDrawer from "./expense-drawer";
+import { Pencil, ChevronRight } from "lucide-react";
 import { cn, formatDateRange, formatMoney } from "@/lib/utils";
 
 const badgeVariants: Record<
@@ -46,7 +40,6 @@ export function ExpensesTable() {
   const requestExpenseDrawerEdit = useStore(
     (state) => state.requestExpenseDrawerEdit,
   );
-  const removeUtilityEntry = useStore((state) => state.removeUtilityEntry);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -61,7 +54,6 @@ export function ExpensesTable() {
         <CardDescription>
           View and manage all recorded utility expenses
         </CardDescription>
-        <ExpenseDrawer />
       </CardHeader>
 
       <CardContent>
@@ -100,38 +92,36 @@ export function ExpensesTable() {
                     entry.usage > 0 ? totalCost / entry.usage : null;
                   const isExpanded = expandedRows.has(entry.id);
 
+                  const toggleExpanded = () => {
+                    setExpandedRows((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(entry.id)) next.delete(entry.id);
+                      else next.add(entry.id);
+                      return next;
+                    });
+                  };
+
                   return (
-                    <Collapsible
-                      key={entry.id}
-                      className="contents"
-                      open={isExpanded}
-                      onOpenChange={(open) => {
-                        setExpandedRows((prev) => {
-                          const next = new Set(prev);
-                          if (open) next.add(entry.id);
-                          else next.delete(entry.id);
-                          return next;
-                        });
-                      }}
-                    >
+                    <Fragment key={entry.id}>
                       <TableRow className="group">
                         <TableCell className="w-[40px]">
-                          <CollapsibleTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                            >
-                              <ChevronRight
-                                className={cn(
-                                  "h-4 w-4 transition-transform",
-                                  isExpanded && "rotate-90",
-                                )}
-                              />
-                              <span className="sr-only">Toggle line items</span>
-                            </Button>
-                          </CollapsibleTrigger>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            aria-expanded={isExpanded}
+                            aria-controls={`line-items-${entry.id}`}
+                            onClick={() => toggleExpanded()}
+                          >
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 transition-transform",
+                                isExpanded && "rotate-90",
+                              )}
+                            />
+                            <span className="sr-only">Toggle line items</span>
+                          </Button>
                         </TableCell>
 
                         <TableCell className="whitespace-nowrap">
@@ -163,39 +153,27 @@ export function ExpensesTable() {
                         </TableCell>
 
                         <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                requestExpenseDrawerEdit(entry.id);
-                              }}
-                            >
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit expense</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeUtilityEntry(entry.id);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete expense</span>
-                            </Button>
-                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              requestExpenseDrawerEdit(entry.id);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit expense</span>
+                          </Button>
                         </TableCell>
                       </TableRow>
 
-                      <CollapsibleContent asChild>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      {isExpanded ? (
+                        <TableRow
+                          id={`line-items-${entry.id}`}
+                          className="bg-muted/30 hover:bg-muted/30"
+                        >
                           <TableCell colSpan={COL_COUNT} className="py-3">
                             <div className="pl-10">
                               {/* <p className="text-xs font-medium text-muted-foreground mb-2">
@@ -234,8 +212,8 @@ export function ExpensesTable() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      </CollapsibleContent>
-                    </Collapsible>
+                      ) : null}
+                    </Fragment>
                   );
                 })
               )}

@@ -46,6 +46,7 @@ export default function ExpenseDrawer() {
   const utilityEntries = useStore((state) => state.utilityEntries);
   const addUtilityEntry = useStore((state) => state.addUtilityEntry);
   const updateUtilityEntry = useStore((state) => state.updateUtilityEntry);
+  const removeUtilityEntry = useStore((state) => state.removeUtilityEntry);
   const expenseDrawerNonce = useStore((state) => state.expenseDrawerNonce);
   const clearExpenseDrawerIntent = useStore(
     (state) => state.clearExpenseDrawerIntent,
@@ -148,6 +149,13 @@ export default function ExpenseDrawer() {
     }));
   };
 
+  const handleDeleteRecord = () => {
+    if (!editingEntryId) return;
+    removeUtilityEntry(editingEntryId);
+    resetForm();
+    setIsDrawerOpen(false);
+  };
+
   const onSubmitEntry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const entryId = editingEntryId ?? String(utilityEntries.length + 1);
@@ -232,11 +240,25 @@ export default function ExpenseDrawer() {
                   : "Enter dates, usage, and one or more cost line items."}
               </DrawerDescription>
             </div>
-            <DrawerClose asChild>
-              <Button type="button" variant="outline" size="sm">
-                Close
-              </Button>
-            </DrawerClose>
+            <div className="flex shrink-0 items-center gap-2">
+              {editingEntryId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={handleDeleteRecord}
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete
+                </Button>
+              ) : null}
+              <DrawerClose asChild>
+                <Button type="button" variant="outline" size="sm">
+                  Close
+                </Button>
+              </DrawerClose>
+            </div>
           </DrawerHeader>
 
           <form
