@@ -26,7 +26,13 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "./ui/input";
-import { CostItem, CostItemFormRow, UtilityType } from "@/types/utility";
+import {
+  CostItem,
+  CostItemFormRow,
+  DEFAULT_USAGE_UNIT_BY_UTILITY,
+  UtilityType,
+} from "@/types/utility";
+import { cn, formatMoney } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { Field, FieldLabel } from "./ui/field";
@@ -68,6 +74,23 @@ function costItemToRow(item: CostItem): CostItemFormRow {
   };
 }
 
+/** Strip currency/grouping; parse for storage. */
+function parseCostInputToNumber(raw: string): number | null {
+  const cleaned = raw.replace(/[$,\s]/g, "").trim();
+  if (cleaned === "") return null;
+  const n = Number(cleaned);
+  return Number.isNaN(n) ? null : n;
+}
+
+/** Blurred display: currency + grouped amount (matches expenses table). */
+function formatCostInputDisplay(stored: string): string {
+  const t = stored.trim();
+  if (t === "") return "";
+  const n = parseCostInputToNumber(t);
+  if (n === null) return stored;
+  return `$${formatMoney(n)}`;
+}
+
 export default function ExpenseDrawer() {
   const utilityEntries = useStore((state) => state.utilityEntries);
   const addUtilityEntry = useStore((state) => state.addUtilityEntry);
@@ -80,22 +103,27 @@ export default function ExpenseDrawer() {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  /** While set, that row's total cost shows raw text for editing; otherwise formatted. */
+  const [focusedTotalCostRowId, setFocusedTotalCostRowId] = useState<
+    string | null
+  >(null);
   const [formData, setFormData] = useState({
     dateStart: "",
     dateEnd: "",
     utility: "electricity" as UtilityType,
     usage: "",
-    usageUnit: "kWh",
+    usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
     costItems: [emptyCostRow()] as CostItemFormRow[],
   });
 
   const resetForm = useCallback(() => {
+    setFocusedTotalCostRowId(null);
     setFormData({
       dateStart: "",
       dateEnd: "",
       utility: "electricity",
       usage: "",
-      usageUnit: "kWh",
+      usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
       costItems: [emptyCostRow()],
     });
     setEditingEntryId(null);
@@ -145,6 +173,7 @@ export default function ExpenseDrawer() {
   }, [expenseDrawerNonce, resetForm, openEditDrawer, clearExpenseDrawerIntent]);
 
   const removeCostRow = (rowId: string) => {
+    setFocusedTotalCostRowId((id) => (id === rowId ? null : id));
     setFormData((prev) => {
       if (prev.costItems.length <= 1) {
         return { ...prev, costItems: [emptyCostRow()] };
@@ -316,6 +345,27 @@ export default function ExpenseDrawer() {
             onSubmit={onSubmitEntry}
           >
             <Field className="w-full">
+              <FieldLabel htmlFor="utility">Utility</FieldLabel>
+
+              <select
+                value={formData.utility}
+                onChange={(e) => {
+                  const utility = e.target.value as UtilityType;
+                  setFormData((prev) => ({
+                    ...prev,
+                    utility,
+                    usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY[utility],
+                  }));
+                }}
+                className={selectClassName}
+              >
+                <option value="electricity">Electricity</option>
+                <option value="water">Water</option>
+                <option value="natural_gas">Natural gas</option>
+                <option value="trash">Trash</option>
+              </select>
+            </Field>
+            <Field className="w-full">
               <FieldLabel htmlFor="date-picker-range">
                 Billing period
               </FieldLabel>
@@ -356,48 +406,41 @@ export default function ExpenseDrawer() {
                 </PopoverContent>
               </Popover>
             </Field>
-            <select
-              value={formData.utility}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  utility: e.target.value as UtilityType,
-                }))
-              }
-              className={selectClassName}
-            >
-              <option value="electricity">electricity</option>
-              <option value="water">water</option>
-              <option value="natural_gas">natural_gas</option>
-              <option value="trash">trash</option>
-            </select>
-            <Input
-              required
-              type="number"
-              min="0"
-              step="any"
-              placeholder="Usage"
-              value={formData.usage}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, usage: e.target.value }))
-              }
-            />
-            <Input
-              required
-              type="text"
-              placeholder="Usage unit (kWh, gal...)"
-              value={formData.usageUnit}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  usageUnit: e.target.value,
-                }))
-              }
-            />
+
+            <Field className="w-full">
+              <FieldLabel htmlFor="usage">Usage</FieldLabel>
+              <div
+                className={cn(
+                  "flex h-9 w-full min-w-0 overflow-hidden rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow]",
+                  "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
+                )}
+              >
+                <Input
+                  id="usage"
+                  required
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={formData.usage}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, usage: e.target.value }))
+                  }
+                  aria-describedby="usage-unit-suffix"
+                  className="min-w-0 flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                />
+                <span
+                  id="usage-unit-suffix"
+                  className="flex shrink-0 items-center border-l border-input bg-muted/40 px-3 text-sm tabular-nums text-muted-foreground"
+                >
+                  {formData.usageUnit}
+                </span>
+              </div>
+            </Field>
 
             <div className="space-y-3 border-t border-border pt-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Cost items</p>
+                <p className="text-sm font-medium">Costs</p>
                 <Button
                   type="button"
                   variant="outline"
@@ -406,7 +449,7 @@ export default function ExpenseDrawer() {
                   onClick={addCostRow}
                 >
                   <Plus className="size-3.5" />
-                  Add line
+                  Add
                 </Button>
               </div>
 
@@ -432,7 +475,7 @@ export default function ExpenseDrawer() {
                       </Button>
                     </div>
                     <Input
-                      placeholder="Name"
+                      placeholder="Description"
                       value={row.name}
                       onChange={(e) =>
                         updateCostRow(row.id, { name: e.target.value })
@@ -445,38 +488,38 @@ export default function ExpenseDrawer() {
                       }
                       className={selectClassName}
                     >
-                      <option value="usage">usage</option>
-                      <option value="demand">demand</option>
-                      <option value="fixed">fixed</option>
+                      <option value="variable">Variable</option>
+                      <option value="fixed">Fixed</option>
+                      <option value="taxes">Taxes</option>
                     </select>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="Rate (optional)"
-                        value={row.rate}
-                        onChange={(e) =>
-                          updateCostRow(row.id, { rate: e.target.value })
-                        }
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="Quantity (optional)"
-                        value={row.quantity}
-                        onChange={(e) =>
-                          updateCostRow(row.id, { quantity: e.target.value })
-                        }
-                      />
-                    </div>
+
                     <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="Total cost"
-                      value={row.totalCost}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="$0.00"
+                      autoComplete="off"
+                      className="tabular-nums"
+                      value={
+                        focusedTotalCostRowId === row.id
+                          ? row.totalCost
+                          : formatCostInputDisplay(row.totalCost)
+                      }
+                      onFocus={() => setFocusedTotalCostRowId(row.id)}
+                      onBlur={(e) => {
+                        setFocusedTotalCostRowId(null);
+                        const n = parseCostInputToNumber(e.target.value);
+                        if (e.target.value.trim() === "") {
+                          updateCostRow(row.id, { totalCost: "" });
+                          return;
+                        }
+                        if (n === null) {
+                          updateCostRow(row.id, {
+                            totalCost: e.target.value.replace(/[$,\s]/g, "").trim(),
+                          });
+                          return;
+                        }
+                        updateCostRow(row.id, { totalCost: String(n) });
+                      }}
                       onChange={(e) =>
                         updateCostRow(row.id, { totalCost: e.target.value })
                       }

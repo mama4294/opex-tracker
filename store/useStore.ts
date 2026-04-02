@@ -1,6 +1,31 @@
 import { create } from "zustand";
-import type { UtilityEntry } from "@/types/utility";
+import type { CostItem, UtilityEntry } from "@/types/utility";
 import { openFile, saveToFile } from "../utils/fileSystem";
+
+/** Map legacy cost line categories from older saved files. */
+function migrateCostItemCategory(category: string): string {
+  if (category === "usage") return "variable";
+  if (category === "demand") return "fixed";
+  return category;
+}
+
+function migrateUtilityEntry(entry: UtilityEntry): UtilityEntry {
+  return {
+    ...entry,
+    costItems: entry.costItems.map((item: CostItem) => ({
+      ...item,
+      category: migrateCostItemCategory(item.category),
+    })),
+  };
+}
+
+function migrateLoadedState(state: Partial<StoreState>): Partial<StoreState> {
+  if (!state.utilityEntries?.length) return state;
+  return {
+    ...state,
+    utilityEntries: state.utilityEntries.map(migrateUtilityEntry),
+  };
+}
 
 /** Signals ExpenseDrawer to open from anywhere (add vs edit by id). Bump nonce + set intent; drawer consumes and clears intent. */
 export type ExpenseDrawerIntent =
@@ -41,7 +66,7 @@ const electricEntry: UtilityEntry = {
     {
       id: "1",
       name: "Energy Charge",
-      category: "usage",
+      category: "variable",
       rate: 0.08,
       quantity: 120000,
       totalCost: 9600,
@@ -49,15 +74,15 @@ const electricEntry: UtilityEntry = {
     {
       id: "2",
       name: "Demand Charge",
-      category: "demand",
+      category: "fixed",
       rate: 20,
       quantity: 450,
       totalCost: 9000,
     },
     {
       id: "3",
-      name: "Service Fee",
-      category: "fixed",
+      name: "Taxes & surcharges",
+      category: "taxes",
       totalCost: 200,
     },
   ],
@@ -115,7 +140,7 @@ export const useStore = create<StoreState>((set) => ({
     try {
       const loadedState = await openFile();
       if (loadedState) {
-        set(loadedState as Partial<StoreState>);
+        set(migrateLoadedState(loadedState as Partial<StoreState>));
       }
     } catch (error) {
       console.error("Error loading data:", error);

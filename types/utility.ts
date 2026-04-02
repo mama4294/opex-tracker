@@ -1,11 +1,19 @@
 export type UtilityType = "electricity" | "water" | "natural_gas" | "trash";
 
+/** Default usage unit shown in the UI for each utility type. */
+export const DEFAULT_USAGE_UNIT_BY_UTILITY: Record<UtilityType, string> = {
+  electricity: "kWh",
+  water: "gal",
+  natural_gas: "MMBtu",
+  trash: "tons",
+};
+
 export type UtilityMetrics = Record<string, number | string | boolean | null>;
 
 export interface CostItem {
   id: string;
   name: string;
-  category: "usage" | "demand" | "fixed" | string;
+  category: "variable" | "fixed" | "taxes" | string;
   rate?: number;
   quantity?: number;
   totalCost: number;
