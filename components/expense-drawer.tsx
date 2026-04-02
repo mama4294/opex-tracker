@@ -30,6 +30,8 @@ import {
   CostItem,
   CostItemFormRow,
   DEFAULT_USAGE_UNIT_BY_UTILITY,
+  UTILITY_TYPE_LABELS,
+  type UtilityEntry,
   UtilityType,
 } from "@/types/utility";
 import { cn, formatMoney } from "@/lib/utils";
@@ -91,7 +93,12 @@ function formatCostInputDisplay(stored: string): string {
   return `$${formatMoney(n)}`;
 }
 
-export default function ExpenseDrawer() {
+type ExpenseDrawerProps = {
+  /** When false, only the drawer is rendered (mount trigger elsewhere, e.g. CardAction). */
+  showTrigger?: boolean;
+};
+
+export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps) {
   const utilityEntries = useStore((state) => state.utilityEntries);
   const addUtilityEntry = useStore((state) => state.addUtilityEntry);
   const updateUtilityEntry = useStore((state) => state.updateUtilityEntry);
@@ -110,6 +117,7 @@ export default function ExpenseDrawer() {
   const [formData, setFormData] = useState({
     dateStart: "",
     dateEnd: "",
+    description: "",
     utility: "electricity" as UtilityType,
     usage: "",
     usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
@@ -121,6 +129,7 @@ export default function ExpenseDrawer() {
     setFormData({
       dateStart: "",
       dateEnd: "",
+      description: "",
       utility: "electricity",
       usage: "",
       usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
@@ -138,6 +147,7 @@ export default function ExpenseDrawer() {
       setFormData({
         dateStart: entry.dateStart,
         dateEnd: entry.dateEnd,
+        description: entry.description ?? "",
         utility: entry.utility,
         usage: String(entry.usage),
         usageUnit: entry.usageUnit,
@@ -242,19 +252,35 @@ export default function ExpenseDrawer() {
     const usage = Number(formData.usage);
     const costItems = rowsToCostItems(formData.costItems, entryId);
 
-    const entry = {
-      id: entryId,
-      dateStart: formData.dateStart,
-      dateEnd: formData.dateEnd,
-      utility: formData.utility,
-      usage: Number.isNaN(usage) ? 0 : usage,
-      usageUnit: formData.usageUnit,
-      costItems,
-    };
+    const desc = formData.description.trim();
 
     if (editingEntryId) {
-      updateUtilityEntry(entry);
+      const existing = utilityEntries.find((e) => e.id === editingEntryId);
+      if (!existing) return;
+      const next: UtilityEntry = {
+        ...existing,
+        id: entryId,
+        dateStart: formData.dateStart,
+        dateEnd: formData.dateEnd,
+        utility: formData.utility,
+        usage: Number.isNaN(usage) ? 0 : usage,
+        usageUnit: formData.usageUnit,
+        costItems,
+      };
+      if (desc !== "") next.description = desc;
+      else delete next.description;
+      updateUtilityEntry(next);
     } else {
+      const entry: UtilityEntry = {
+        id: entryId,
+        dateStart: formData.dateStart,
+        dateEnd: formData.dateEnd,
+        utility: formData.utility,
+        usage: Number.isNaN(usage) ? 0 : usage,
+        usageUnit: formData.usageUnit,
+        costItems,
+      };
+      if (desc !== "") entry.description = desc;
       addUtilityEntry(entry);
     }
 
@@ -294,10 +320,12 @@ export default function ExpenseDrawer() {
     "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
   return (
-    <div>
-      <Button variant="default" onClick={openAddDrawer}>
-        Add Expense
-      </Button>
+    <>
+      {showTrigger ? (
+        <Button type="button" variant="default" onClick={openAddDrawer}>
+          Add expense
+        </Button>
+      ) : null}
 
       <Drawer
         direction="right"
@@ -315,8 +343,8 @@ export default function ExpenseDrawer() {
               </DrawerTitle>
               <DrawerDescription className="sr-only">
                 {editingEntryId
-                  ? "Update dates, usage, and cost line items for this entry."
-                  : "Enter dates, usage, and one or more cost line items."}
+                  ? "Update description, dates, usage, and cost line items for this entry."
+                  : "Enter description, dates, usage, and one or more cost line items."}
               </DrawerDescription>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -359,10 +387,13 @@ export default function ExpenseDrawer() {
                 }}
                 className={selectClassName}
               >
-                <option value="electricity">Electricity</option>
-                <option value="water">Water</option>
-                <option value="natural_gas">Natural gas</option>
-                <option value="trash">Trash</option>
+                {(Object.keys(UTILITY_TYPE_LABELS) as UtilityType[]).map(
+                  (value) => (
+                    <option key={value} value={value}>
+                      {UTILITY_TYPE_LABELS[value]}
+                    </option>
+                  ),
+                )}
               </select>
             </Field>
             <Field className="w-full">
@@ -405,6 +436,25 @@ export default function ExpenseDrawer() {
                   />
                 </PopoverContent>
               </Popover>
+            </Field>
+
+            <Field className="w-full">
+              <FieldLabel htmlFor="entry-description">Description</FieldLabel>
+              <textarea
+                id="entry-description"
+                rows={3}
+                placeholder="Optional note (account, building, variance, etc.)"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                className={cn(
+                  "flex min-h-[4.5rem] w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              />
             </Field>
 
             <Field className="w-full">
@@ -537,6 +587,6 @@ export default function ExpenseDrawer() {
           </form>
         </DrawerContent>
       </Drawer>
-    </div>
+    </>
   );
 }

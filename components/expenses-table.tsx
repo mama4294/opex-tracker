@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -19,9 +20,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/store/useStore";
-import type { UtilityType } from "@/types/utility";
-import { Pencil, ChevronRight } from "lucide-react";
+import { UTILITY_TYPE_LABELS, type UtilityType } from "@/types/utility";
+import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { cn, formatDateRange, formatMoney } from "@/lib/utils";
+import ExpenseDrawer from "./expense-drawer";
 
 const badgeVariants: Record<
   UtilityType,
@@ -33,10 +35,13 @@ const badgeVariants: Record<
   trash: "destructive",
 };
 
-const COL_COUNT = 7;
+const COL_COUNT = 8;
 
 export function ExpensesTable() {
   const utilityEntries = useStore((state) => state.utilityEntries);
+  const requestExpenseDrawerAdd = useStore(
+    (state) => state.requestExpenseDrawerAdd,
+  );
   const requestExpenseDrawerEdit = useStore(
     (state) => state.requestExpenseDrawerEdit,
   );
@@ -49,12 +54,24 @@ export function ExpensesTable() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Expense Records</CardTitle>
+      <CardHeader className="border-b border-border pb-4">
+        <CardTitle>Expense records</CardTitle>
         <CardDescription>
           View and manage all recorded utility expenses
         </CardDescription>
+        <CardAction>
+          <Button
+            type="button"
+            size="default"
+            onClick={() => requestExpenseDrawerAdd()}
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Add expense
+          </Button>
+        </CardAction>
       </CardHeader>
+
+      <ExpenseDrawer showTrigger={false} />
 
       <CardContent>
         <div className="rounded-md border">
@@ -62,8 +79,12 @@ export function ExpensesTable() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                <TableHead>Period</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="min-w-[140px] max-w-[240px]">
+                  Period
+                </TableHead>
+
                 <TableHead className="text-right">Usage</TableHead>
                 <TableHead className="text-right">Total Cost</TableHead>
                 <TableHead className="text-right">Unit Cost</TableHead>
@@ -124,14 +145,27 @@ export function ExpensesTable() {
                           </Button>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap">
-                          {formatDateRange(entry.dateStart, entry.dateEnd)}
-                        </TableCell>
-
                         <TableCell>
                           <Badge variant={badgeVariants[entry.utility]}>
-                            {entry.utility}
+                            {UTILITY_TYPE_LABELS[entry.utility]}
                           </Badge>
+                        </TableCell>
+
+                        <TableCell className="min-w-[140px] max-w-[240px]">
+                          {entry.description?.trim() ? (
+                            <span
+                              className="line-clamp-2 text-sm "
+                              title={entry.description.trim()}
+                            >
+                              {entry.description.trim()}
+                            </span>
+                          ) : (
+                            <span className="text-sm">—</span>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          {formatDateRange(entry.dateStart, entry.dateEnd)}
                         </TableCell>
 
                         <TableCell className="text-right">

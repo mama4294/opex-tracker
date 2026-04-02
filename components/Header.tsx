@@ -18,7 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import ExpenseDrawer from "./expense-drawer";
 
 export default function Header() {
   const saveState = useStore((s) => s.saveState);
@@ -107,7 +106,6 @@ export default function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <ExpenseDrawer />
       </div>
     </header>
   );

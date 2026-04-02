@@ -80,6 +80,7 @@ const electricEntry: UtilityEntry = {
   id: "1",
   dateStart: "2026-03-01",
   dateEnd: "2026-03-31",
+  description: "Main plant — March billing cycle",
   utility: "electricity",
   usage: 120000,
   usageUnit: "kWh",
