@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { Button } from "./ui/button";
+import { format } from "date-fns";
+import { type DateRange } from "react-day-picker";
 import {
   Drawer,
   DrawerClose,
@@ -11,10 +19,28 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "./ui/drawer";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "./ui/input";
 import { CostItem, CostItemFormRow, UtilityType } from "@/types/utility";
 import { useStore } from "@/store/useStore";
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { Field, FieldLabel } from "./ui/field";
+
+function parseLocalDateString(s: string): Date | undefined {
+  if (!s) return undefined;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d || Number.isNaN(y + m + d)) return undefined;
+  return new Date(y, m - 1, d);
+}
+
+function toDateString(d: Date): string {
+  return format(d, "yyyy-MM-dd");
+}
 
 function emptyCostRow(rowId = "row-0"): CostItemFormRow {
   return {
@@ -156,8 +182,32 @@ export default function ExpenseDrawer() {
     setIsDrawerOpen(false);
   };
 
+  const dateRange: DateRange | undefined = useMemo(() => {
+    const from = parseLocalDateString(formData.dateStart);
+    const to = parseLocalDateString(formData.dateEnd);
+    if (!from) return undefined;
+    return { from, to: to ?? from };
+  }, [formData.dateStart, formData.dateEnd]);
+
+  const handleRangeSelect = (range: DateRange | undefined) => {
+    if (!range?.from) {
+      setFormData((prev) => ({ ...prev, dateStart: "", dateEnd: "" }));
+      return;
+    }
+    const start = toDateString(range.from);
+    const end = range.to ? toDateString(range.to) : start;
+    setFormData((prev) => ({
+      ...prev,
+      dateStart: start,
+      dateEnd: end,
+    }));
+  };
+
   const onSubmitEntry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!formData.dateStart.trim() || !formData.dateEnd.trim()) {
+      return;
+    }
     const entryId = editingEntryId ?? String(utilityEntries.length + 1);
 
     const usage = Number(formData.usage);
@@ -232,7 +282,7 @@ export default function ExpenseDrawer() {
           <DrawerHeader className="flex flex-row items-center justify-between gap-2 border-b border-border text-left">
             <div className="space-y-1">
               <DrawerTitle className="text-lg font-semibold">
-                {editingEntryId ? "Edit Utility Entry" : "Add Utility Entry"}
+                {editingEntryId ? "Edit Expense" : "Add Utility Entry"}
               </DrawerTitle>
               <DrawerDescription className="sr-only">
                 {editingEntryId
@@ -265,25 +315,47 @@ export default function ExpenseDrawer() {
             className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
             onSubmit={onSubmitEntry}
           >
-            <Input
-              required
-              type="date"
-              value={formData.dateStart}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  dateStart: e.target.value,
-                }))
-              }
-            />
-            <Input
-              required
-              type="date"
-              value={formData.dateEnd}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, dateEnd: e.target.value }))
-              }
-            />
+            <Field className="w-full">
+              <FieldLabel htmlFor="date-picker-range">
+                Billing period
+              </FieldLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    id="date-picker-range"
+                    className="h-9 w-full justify-start gap-2 px-3 font-normal"
+                  >
+                    <CalendarIcon className="size-4 shrink-0" />
+                    {dateRange?.from ? (
+                      dateRange.to &&
+                      dateRange.to.getTime() !== dateRange.from.getTime() ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} –{" "}
+                          {format(dateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Select start and end date
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={handleRangeSelect}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+            </Field>
             <select
               value={formData.utility}
               onChange={(e) =>
@@ -416,7 +488,7 @@ export default function ExpenseDrawer() {
 
             <DrawerFooter className="mt-auto border-t border-border px-0 pt-4">
               <Button type="submit" className="w-full">
-                {editingEntryId ? "Save Changes" : "Add Utility Entry"}
+                {editingEntryId ? "Save Changes" : "Save"}
               </Button>
             </DrawerFooter>
           </form>
