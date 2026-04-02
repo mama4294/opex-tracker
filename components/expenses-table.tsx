@@ -23,7 +23,6 @@ import { useStore } from "@/store/useStore";
 import { UTILITY_TYPE_LABELS, type UtilityType } from "@/types/utility";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { cn, formatDateRange, formatMoney } from "@/lib/utils";
-import ExpenseDrawer from "./expense-drawer";
 
 const badgeVariants: Record<
   UtilityType,
@@ -70,8 +69,6 @@ export function ExpensesTable() {
           </Button>
         </CardAction>
       </CardHeader>
-
-      <ExpenseDrawer showTrigger={false} />
 
       <CardContent>
         <div className="rounded-md border">
