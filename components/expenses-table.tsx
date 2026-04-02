@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -15,12 +16,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/store/useStore";
 import type { UtilityType } from "@/types/utility";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, ChevronRight } from "lucide-react";
 import ExpenseDrawer from "./expense-drawer";
+import { cn, formatDateRange, formatMoney } from "@/lib/utils";
 
 const badgeVariants: Record<
   UtilityType,
@@ -32,21 +39,20 @@ const badgeVariants: Record<
   trash: "destructive",
 };
 
+const COL_COUNT = 7;
+
 export function ExpensesTable() {
   const utilityEntries = useStore((state) => state.utilityEntries);
   const requestExpenseDrawerEdit = useStore(
     (state) => state.requestExpenseDrawerEdit,
   );
+  const removeUtilityEntry = useStore((state) => state.removeUtilityEntry);
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const formatDateRange = (start: string, end: string) =>
-    `${formatDate(start)} - ${formatDate(end)}`;
+  const sortedEntries = [...utilityEntries].sort((a, b) =>
+    b.dateStart.localeCompare(a.dateStart),
+  );
 
   return (
     <Card>
@@ -63,84 +69,173 @@ export function ExpensesTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]" />
                 <TableHead>Period</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Usage</TableHead>
                 <TableHead className="text-right">Total Cost</TableHead>
-                <TableHead className="text-right"># Items</TableHead>
-                <TableHead />
+                <TableHead className="text-right">Unit Cost</TableHead>
+                <TableHead className="w-[100px]" />
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {utilityEntries.length === 0 ? (
+              {sortedEntries.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={COL_COUNT}
                     className="text-center py-8 text-muted-foreground"
                   >
-                    No expenses recorded yet.
+                    No expenses recorded yet. Add your first expense to get
+                    started.
                   </TableCell>
                 </TableRow>
               ) : (
-                utilityEntries.map((entry) => {
+                sortedEntries.map((entry) => {
                   const totalCost = entry.costItems.reduce(
                     (sum, item) => sum + item.totalCost,
                     0,
                   );
+                  const unitCost =
+                    entry.usage > 0 ? totalCost / entry.usage : null;
+                  const isExpanded = expandedRows.has(entry.id);
 
                   return (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        {formatDateRange(entry.dateStart, entry.dateEnd)}
-                      </TableCell>
+                    <Collapsible
+                      key={entry.id}
+                      className="contents"
+                      open={isExpanded}
+                      onOpenChange={(open) => {
+                        setExpandedRows((prev) => {
+                          const next = new Set(prev);
+                          if (open) next.add(entry.id);
+                          else next.delete(entry.id);
+                          return next;
+                        });
+                      }}
+                    >
+                      <TableRow className="group">
+                        <TableCell className="w-[40px]">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                            >
+                              <ChevronRight
+                                className={cn(
+                                  "h-4 w-4 transition-transform",
+                                  isExpanded && "rotate-90",
+                                )}
+                              />
+                              <span className="sr-only">Toggle line items</span>
+                            </Button>
+                          </CollapsibleTrigger>
+                        </TableCell>
 
-                      <TableCell>
-                        <Badge variant={badgeVariants[entry.utility]}>
-                          {entry.utility}
-                        </Badge>
-                      </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDateRange(entry.dateStart, entry.dateEnd)}
+                        </TableCell>
 
-                      <TableCell className="text-right">
-                        {entry.usage} {entry.usageUnit}
-                      </TableCell>
+                        <TableCell>
+                          <Badge variant={badgeVariants[entry.utility]}>
+                            {entry.utility}
+                          </Badge>
+                        </TableCell>
 
-                      <TableCell className="text-right font-medium">
-                        ${totalCost.toFixed(2)}
-                      </TableCell>
+                        <TableCell className="text-right">
+                          {entry.usage.toLocaleString()} {entry.usageUnit}
+                        </TableCell>
 
-                      <TableCell className="text-right">
-                        {entry.costItems.length}
-                      </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${formatMoney(totalCost)}
+                        </TableCell>
 
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              requestExpenseDrawerEdit(entry.id);
-                            }}
-                            aria-label={`Edit entry ${entry.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                        <TableCell className="text-right text-muted-foreground">
+                          {unitCost != null ? (
+                            <>
+                              ${formatMoney(unitCost)}/{entry.usageUnit}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
 
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => console.log("remove entry")}
-                            className="h-8 w-8 text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestExpenseDrawerEdit(entry.id);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit expense</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeUtilityEntry(entry.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete expense</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+
+                      <CollapsibleContent asChild>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={COL_COUNT} className="py-3">
+                            <div className="pl-10">
+                              {/* <p className="text-xs font-medium text-muted-foreground mb-2">
+                                Line items
+                              </p> */}
+                              <div className="space-y-1">
+                                {entry.costItems.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-1 px-3">
+                                    No cost line items for this entry.
+                                  </p>
+                                ) : (
+                                  entry.costItems.map((item) => (
+                                    <div
+                                      key={item.id}
+                                      className="flex items-center justify-between gap-4 text-sm py-1 px-3 rounded"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="font-medium">
+                                          {item.name}
+                                        </span>
+                                        <span className="text-muted-foreground text-xs ml-2">
+                                          ({item.category})
+                                        </span>
+                                      </span>
+                                      <span className="font-medium shrink-0">
+                                        ${formatMoney(item.totalCost)}
+                                      </span>
+                                    </div>
+                                  ))
+                                )}
+                                <div className="flex items-center justify-between text-sm py-1 px-3 font-medium border-t border-border mt-2 pt-2">
+                                  <span>Total</span>
+                                  <span>${formatMoney(totalCost)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </CollapsibleContent>
+                    </Collapsible>
                   );
                 })
               )}

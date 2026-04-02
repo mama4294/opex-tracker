@@ -14,6 +14,7 @@ interface StoreState {
   updateProjectTitle: (title: string) => void;
   addUtilityEntry: (entry: UtilityEntry) => void;
   updateUtilityEntry: (entry: UtilityEntry) => void;
+  removeUtilityEntry: (entryId: string) => void;
   saveState: () => Promise<void>;
   saveAsState: () => Promise<void>;
   loadState: () => Promise<void>;
@@ -93,6 +94,10 @@ export const useStore = create<StoreState>((set) => ({
       utilityEntries: state.utilityEntries.map((existing) =>
         existing.id === entry.id ? entry : existing
       ),
+    })),
+  removeUtilityEntry: (entryId) =>
+    set((state) => ({
+      utilityEntries: state.utilityEntries.filter((e) => e.id !== entryId),
     })),
   saveState: async () => {
     const state = useStore.getState();
