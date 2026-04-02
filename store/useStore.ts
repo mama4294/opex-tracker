@@ -19,11 +19,34 @@ function migrateUtilityEntry(entry: UtilityEntry): UtilityEntry {
   };
 }
 
-function migrateLoadedState(state: Partial<StoreState>): Partial<StoreState> {
-  if (!state.utilityEntries?.length) return state;
+type PersistedProject = {
+  projectTitle?: string;
+  utilityEntries?: UtilityEntry[];
+};
+
+function migrateLoadedState(state: PersistedProject): Partial<StoreState> {
+  const entries = state.utilityEntries;
+  if (!entries?.length) return state as Partial<StoreState>;
   return {
     ...state,
-    utilityEntries: state.utilityEntries.map(migrateUtilityEntry),
+    utilityEntries: entries.map(migrateUtilityEntry),
+  };
+}
+
+function getPersistableSnapshot(state: StoreState): PersistedProject {
+  return {
+    projectTitle: state.projectTitle,
+    utilityEntries: state.utilityEntries,
+  };
+}
+
+function pickLoadedProject(raw: unknown): PersistedProject {
+  if (!raw || typeof raw !== "object") return {};
+  const o = raw as Record<string, unknown>;
+  const entries = o.utilityEntries;
+  return {
+    projectTitle: typeof o.projectTitle === "string" ? o.projectTitle : undefined,
+    utilityEntries: Array.isArray(entries) ? (entries as UtilityEntry[]) : undefined,
   };
 }
 
@@ -42,7 +65,8 @@ interface StoreState {
   removeUtilityEntry: (entryId: string) => void;
   saveState: () => Promise<void>;
   saveAsState: () => Promise<void>;
-  loadState: () => Promise<void>;
+  /** Returns true if a file was loaded; false if user cancelled or file was empty. */
+  loadState: () => Promise<boolean>;
   resetState: () => void;
   /** Incremented whenever an external component requests opening the expense drawer. */
   expenseDrawerNonce: number;
@@ -117,7 +141,7 @@ export const useStore = create<StoreState>((set) => ({
   updateUtilityEntry: (entry) =>
     set((state) => ({
       utilityEntries: state.utilityEntries.map((existing) =>
-        existing.id === entry.id ? entry : existing
+        existing.id === entry.id ? entry : existing,
       ),
     })),
   removeUtilityEntry: (entryId) =>
@@ -127,23 +151,26 @@ export const useStore = create<StoreState>((set) => ({
   saveState: async () => {
     const state = useStore.getState();
     await saveToFile(
-      state,
-      `${useStore.getState().projectTitle}.json`,
-      window.handle
+      getPersistableSnapshot(state),
+      `${state.projectTitle}.json`,
+      window.handle,
     );
   },
   saveAsState: async () => {
     const state = useStore.getState();
-    await saveToFile(state, `${useStore.getState().projectTitle}.json`);
+    await saveToFile(getPersistableSnapshot(state), `${state.projectTitle}.json`);
   },
   loadState: async () => {
     try {
-      const loadedState = await openFile();
-      if (loadedState) {
-        set(migrateLoadedState(loadedState as Partial<StoreState>));
+      const loadedState = pickLoadedProject(await openFile());
+      if (loadedState.projectTitle != null || loadedState.utilityEntries != null) {
+        set(migrateLoadedState(loadedState));
+        return true;
       }
+      return false;
     } catch (error) {
       console.error("Error loading data:", error);
+      throw error;
     }
   },
   resetState: () => {

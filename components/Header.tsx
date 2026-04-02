@@ -1,79 +1,114 @@
 "use client";
 
-import { FilePlus, FolderOpen, Menu, Save } from "lucide-react";
+import {
+  ChevronDown,
+  Factory,
+  FilePlus,
+  FolderOpen,
+  Save,
+  SaveAll,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/useStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import ExpenseDrawer from "./expense-drawer";
 
 export default function Header() {
-  const { saveState, saveAsState, loadState, resetState } = useStore();
-  const projectTitle = useStore((state) => state.projectTitle);
-  const updateProjectTitle = useStore((state) => state.updateProjectTitle);
+  const saveState = useStore((s) => s.saveState);
+  const saveAsState = useStore((s) => s.saveAsState);
+  const loadState = useStore((s) => s.loadState);
+  const resetState = useStore((s) => s.resetState);
 
-  const handleSave = async (type: "save" | "saveAs") => {
+  const handleNew = () => {
+    resetState();
+    toast.success("New project");
+  };
+
+  const handleOpen = async () => {
     try {
-      if (type === "save") {
-        await saveState();
-      } else {
-        await saveAsState();
-      }
-    } catch (error) {
-      console.error("Error saving file:", error);
+      const loaded = await loadState();
+      if (loaded) toast.success("Project opened");
+    } catch {
+      toast.error("Could not open file");
+    }
+  };
+
+  const handleSave = async (kind: "save" | "saveAs") => {
+    try {
+      if (kind === "save") await saveState();
+      else await saveAsState();
+      toast.success(kind === "save" ? "Saved" : "Saved as");
+    } catch {
+      toast.error("Save failed");
     }
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-[57px] items-center gap-1 border-b bg-background px-4">
-      <div className="p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline" size="icon">
-              <Menu className="size-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={resetState}>
-              {" "}
-              <FilePlus className="size-5 mr-2" />
-              New Project
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={loadState}>
-              <FolderOpen className="size-5 mr-2" />
-              Open
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSave("save")}>
-              <Save className="size-5 mr-2" />
-              Save
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSave("saveAs")}>
-              {" "}
-              <Save className="size-5 mr-2" />
-              Save As
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <header className="border-b bg-card">
+      <div className="container mx-auto flex items-center justify-between px-4 py-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Factory className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold">Factory Operations</h1>
+              <p className="text-sm text-muted-foreground">Expense Dashboard</p>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                File
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onSelect={() => {
+                  handleNew();
+                }}
+              >
+                <FilePlus className="mr-2 h-4 w-4" />
+                New
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleOpen();
+                }}
+              >
+                <FolderOpen className="mr-2 h-4 w-4" />
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleSave("save");
+                }}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Save
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void handleSave("saveAs");
+                }}
+              >
+                <SaveAll className="mr-2 h-4 w-4" />
+                Save As
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <ExpenseDrawer />
       </div>
-      <Input
-        type="text"
-        className="text-xl font-semibold border-none"
-        value={projectTitle}
-        onChange={(e) => updateProjectTitle(e.target.value)}
-      />
-      <Button
-        variant="outline"
-        size="sm"
-        className="ml-auto gap-1.5 text-sm"
-        onClick={() => handleSave("save")}
-      >
-        <Save className="size-3.5" />
-        Save
-      </Button>
     </header>
   );
 }

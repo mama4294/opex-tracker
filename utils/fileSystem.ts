@@ -16,21 +16,26 @@ export const saveToFile = async (
   window.handle = result ?? undefined;
 };
 
-export const openFile = async (): Promise<unknown> => {
+export const openFile = async (): Promise<unknown | undefined> => {
   try {
-    const blob = await fileOpen({
+    const file = await fileOpen({
       mimeTypes: ["application/json"],
+      extensions: [".json"],
     });
 
-    if (blob.handle) {
-      window.handle = blob.handle;
-      const file = await blob.handle.getFile();
-      const contents = await file.text();
-      return JSON.parse(contents);
+    // File System Access API attaches `handle`; legacy <input type="file"> does not.
+    if (file.handle) {
+      window.handle = file.handle;
+    } else {
+      window.handle = undefined;
     }
 
-    return undefined;
+    const contents = await file.text();
+    return JSON.parse(contents);
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return undefined;
+    }
     console.error("Error opening file:", error);
     throw error;
   }
