@@ -29,10 +29,9 @@ import { Input } from "./ui/input";
 import {
   CostItem,
   CostItemFormRow,
-  DEFAULT_USAGE_UNIT_BY_UTILITY,
-  UTILITY_TYPE_LABELS,
+  DEFAULT_UTILITY_TYPE_DEFINITIONS,
+  defaultUsageUnitFor,
   type UtilityEntry,
-  UtilityType,
 } from "@/types/utility";
 import { cn, formatMoney } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
@@ -100,6 +99,7 @@ type ExpenseDrawerProps = {
 
 export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps) {
   const utilityEntries = useStore((state) => state.utilityEntries);
+  const utilityTypeDefinitions = useStore((state) => state.utilityTypeDefinitions);
   const addUtilityEntry = useStore((state) => state.addUtilityEntry);
   const updateUtilityEntry = useStore((state) => state.updateUtilityEntry);
   const removeUtilityEntry = useStore((state) => state.removeUtilityEntry);
@@ -108,31 +108,46 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
     (state) => state.clearExpenseDrawerIntent,
   );
 
+  const sortedUtilityTypes = useMemo(
+    () =>
+      [...utilityTypeDefinitions].sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+      ),
+    [utilityTypeDefinitions],
+  );
+
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   /** While set, that row's total cost shows raw text for editing; otherwise formatted. */
   const [focusedTotalCostRowId, setFocusedTotalCostRowId] = useState<
     string | null
   >(null);
-  const [formData, setFormData] = useState({
-    dateStart: "",
-    dateEnd: "",
-    description: "",
-    utility: "electricity" as UtilityType,
-    usage: "",
-    usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
-    costItems: [emptyCostRow()] as CostItemFormRow[],
+  const [formData, setFormData] = useState(() => {
+    const d = DEFAULT_UTILITY_TYPE_DEFINITIONS[0];
+    return {
+      dateStart: "",
+      dateEnd: "",
+      description: "",
+      utility: d?.id ?? "",
+      usage: "",
+      usageUnit: d?.defaultUsageUnit ?? "units",
+      costItems: [emptyCostRow()] as CostItemFormRow[],
+    };
   });
 
   const resetForm = useCallback(() => {
     setFocusedTotalCostRowId(null);
+    const defs = useStore.getState().utilityTypeDefinitions;
+    const first = defs[0];
     setFormData({
       dateStart: "",
       dateEnd: "",
       description: "",
-      utility: "electricity",
+      utility: first?.id ?? "",
       usage: "",
-      usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY.electricity,
+      usageUnit: first
+        ? defaultUsageUnitFor(defs, first.id)
+        : "units",
       costItems: [emptyCostRow()],
     });
     setEditingEntryId(null);
@@ -245,6 +260,10 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
   const onSubmitEntry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.dateStart.trim() || !formData.dateEnd.trim()) {
+      return;
+    }
+    const defs = useStore.getState().utilityTypeDefinitions;
+    if (defs.length === 0 || !formData.utility.trim()) {
       return;
     }
     const entryId = editingEntryId ?? String(utilityEntries.length + 1);
@@ -376,24 +395,36 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
               <FieldLabel htmlFor="utility">Utility</FieldLabel>
 
               <select
+                id="utility"
                 value={formData.utility}
+                disabled={sortedUtilityTypes.length === 0}
                 onChange={(e) => {
-                  const utility = e.target.value as UtilityType;
+                  const utilityId = e.target.value;
                   setFormData((prev) => ({
                     ...prev,
-                    utility,
-                    usageUnit: DEFAULT_USAGE_UNIT_BY_UTILITY[utility],
+                    utility: utilityId,
+                    usageUnit: defaultUsageUnitFor(
+                      useStore.getState().utilityTypeDefinitions,
+                      utilityId,
+                    ),
                   }));
                 }}
                 className={selectClassName}
               >
-                {(Object.keys(UTILITY_TYPE_LABELS) as UtilityType[]).map(
-                  (value) => (
-                    <option key={value} value={value}>
-                      {UTILITY_TYPE_LABELS[value]}
-                    </option>
-                  ),
-                )}
+                {sortedUtilityTypes.length === 0 ? (
+                  <option value="">Add a utility type in Settings</option>
+                ) : null}
+                {sortedUtilityTypes.map((def) => (
+                  <option key={def.id} value={def.id}>
+                    {def.label}
+                  </option>
+                ))}
+                {formData.utility &&
+                !sortedUtilityTypes.some((d) => d.id === formData.utility) ? (
+                  <option value={formData.utility}>
+                    {formData.utility} (removed type — pick a new one)
+                  </option>
+                ) : null}
               </select>
             </Field>
             <Field className="w-full">

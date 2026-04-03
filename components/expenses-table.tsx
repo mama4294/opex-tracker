@@ -20,24 +20,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/store/useStore";
-import { UTILITY_TYPE_LABELS, type UtilityType } from "@/types/utility";
+import { utilityBadgeClassForColorId, utilityLabelFor } from "@/types/utility";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { cn, formatDateRange, formatMoney } from "@/lib/utils";
-
-const badgeVariants: Record<
-  UtilityType,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  electricity: "default",
-  water: "secondary",
-  natural_gas: "outline",
-  trash: "destructive",
-};
 
 const COL_COUNT = 8;
 
 export function ExpensesTable() {
   const utilityEntries = useStore((state) => state.utilityEntries);
+  const utilityTypeDefinitions = useStore((state) => state.utilityTypeDefinitions);
   const requestExpenseDrawerAdd = useStore(
     (state) => state.requestExpenseDrawerAdd,
   );
@@ -102,6 +93,16 @@ export function ExpensesTable() {
                 </TableRow>
               ) : (
                 sortedEntries.map((entry) => {
+                  const defIndex = utilityTypeDefinitions.findIndex(
+                    (d) => d.id === entry.utility,
+                  );
+                  const def =
+                    defIndex >= 0 ? utilityTypeDefinitions[defIndex] : undefined;
+                  const badgeColorClass = utilityBadgeClassForColorId(
+                    def?.badgeColor,
+                    defIndex >= 0 ? defIndex : entry.utility.length,
+                  );
+
                   const totalCost = entry.costItems.reduce(
                     (sum, item) => sum + item.totalCost,
                     0,
@@ -143,8 +144,17 @@ export function ExpensesTable() {
                         </TableCell>
 
                         <TableCell>
-                          <Badge variant={badgeVariants[entry.utility]}>
-                            {UTILITY_TYPE_LABELS[entry.utility]}
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "border-transparent font-medium shadow-none",
+                              badgeColorClass,
+                            )}
+                          >
+                            {utilityLabelFor(
+                              utilityTypeDefinitions,
+                              entry.utility,
+                            )}
                           </Badge>
                         </TableCell>
 

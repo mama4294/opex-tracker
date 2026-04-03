@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import type { CostItem, UtilityEntry } from "@/types/utility";
+import type { CostItem, UtilityEntry, UtilityTypeDefinition } from "@/types/utility";
+import {
+  DEFAULT_UTILITY_TYPE_DEFINITIONS,
+  makeUniqueUtilityId,
+  normalizeUtilityTypeDefinitions,
+  slugifyUtilityLabel,
+  UTILITY_BADGE_COLOR_PRESETS,
+} from "@/types/utility";
 import { openFile, saveToFile } from "../utils/fileSystem";
 
 /** Map legacy cost line categories from older saved files. */
@@ -22,21 +29,40 @@ function migrateUtilityEntry(entry: UtilityEntry): UtilityEntry {
 type PersistedProject = {
   projectTitle?: string;
   utilityEntries?: UtilityEntry[];
+  utilityTypeDefinitions?: UtilityTypeDefinition[];
 };
 
 function migrateLoadedState(state: PersistedProject): Partial<StoreState> {
-  const entries = state.utilityEntries;
-  if (!entries?.length) return state as Partial<StoreState>;
-  return {
-    ...state,
-    utilityEntries: entries.map(migrateUtilityEntry),
-  };
+  const partial: Partial<StoreState> = {};
+
+  if (state.projectTitle !== undefined) {
+    partial.projectTitle = state.projectTitle;
+  }
+
+  if (state.utilityTypeDefinitions !== undefined && state.utilityTypeDefinitions.length > 0) {
+    partial.utilityTypeDefinitions = normalizeUtilityTypeDefinitions(
+      state.utilityTypeDefinitions,
+    );
+  } else if (
+    state.utilityEntries !== undefined &&
+    state.utilityEntries.length > 0 &&
+    state.utilityTypeDefinitions === undefined
+  ) {
+    partial.utilityTypeDefinitions = DEFAULT_UTILITY_TYPE_DEFINITIONS;
+  }
+
+  if (state.utilityEntries !== undefined) {
+    partial.utilityEntries = state.utilityEntries.map(migrateUtilityEntry);
+  }
+
+  return partial;
 }
 
 function getPersistableSnapshot(state: StoreState): PersistedProject {
   return {
     projectTitle: state.projectTitle,
     utilityEntries: state.utilityEntries,
+    utilityTypeDefinitions: state.utilityTypeDefinitions,
   };
 }
 
@@ -44,9 +70,13 @@ function pickLoadedProject(raw: unknown): PersistedProject {
   if (!raw || typeof raw !== "object") return {};
   const o = raw as Record<string, unknown>;
   const entries = o.utilityEntries;
+  const defs = o.utilityTypeDefinitions;
   return {
     projectTitle: typeof o.projectTitle === "string" ? o.projectTitle : undefined,
     utilityEntries: Array.isArray(entries) ? (entries as UtilityEntry[]) : undefined,
+    utilityTypeDefinitions: Array.isArray(defs)
+      ? (defs as UtilityTypeDefinition[])
+      : undefined,
   };
 }
 
@@ -58,11 +88,22 @@ export type ExpenseDrawerIntent =
 interface StoreState {
   projectTitle: string;
   utilityEntries: UtilityEntry[];
+  utilityTypeDefinitions: UtilityTypeDefinition[];
   setProjectTitle: (title: string) => void;
   updateProjectTitle: (title: string) => void;
   addUtilityEntry: (entry: UtilityEntry) => void;
   updateUtilityEntry: (entry: UtilityEntry) => void;
   removeUtilityEntry: (entryId: string) => void;
+  addUtilityTypeDefinition: (input: {
+    label: string;
+    defaultUsageUnit: string;
+  }) => void;
+  updateUtilityTypeDefinition: (
+    id: string,
+    patch: { label?: string; defaultUsageUnit?: string; badgeColor?: string },
+  ) => void;
+  removeUtilityTypeDefinition: (id: string) => boolean;
+  utilityTypeEntryCount: (id: string) => number;
   saveState: () => Promise<void>;
   saveAsState: () => Promise<void>;
   /** Returns true if a file was loaded; false if user cancelled or file was empty. */
@@ -113,13 +154,14 @@ const electricEntry: UtilityEntry = {
   ],
 };
 
-const initialState = {
+const initialAppState = {
   projectTitle: "opex-tracker",
   utilityEntries: [electricEntry] as UtilityEntry[],
+  utilityTypeDefinitions: DEFAULT_UTILITY_TYPE_DEFINITIONS,
 };
 
-export const useStore = create<StoreState>((set) => ({
-  ...initialState,
+export const useStore = create<StoreState>((set, get) => ({
+  ...initialAppState,
   expenseDrawerNonce: 0,
   expenseDrawerIntent: null,
   requestExpenseDrawerAdd: () =>
@@ -149,6 +191,57 @@ export const useStore = create<StoreState>((set) => ({
     set((state) => ({
       utilityEntries: state.utilityEntries.filter((e) => e.id !== entryId),
     })),
+  addUtilityTypeDefinition: ({ label, defaultUsageUnit }) => {
+    const trimmedLabel = label.trim();
+    const trimmedUnit = defaultUsageUnit.trim();
+    if (!trimmedLabel || !trimmedUnit) return;
+    set((state) => {
+      const base = slugifyUtilityLabel(trimmedLabel);
+      const id = makeUniqueUtilityId(state.utilityTypeDefinitions, base);
+      const colorIdx =
+        state.utilityTypeDefinitions.length %
+        UTILITY_BADGE_COLOR_PRESETS.length;
+      return {
+        utilityTypeDefinitions: [
+          ...state.utilityTypeDefinitions,
+          {
+            id,
+            label: trimmedLabel,
+            defaultUsageUnit: trimmedUnit,
+            badgeColor: UTILITY_BADGE_COLOR_PRESETS[colorIdx].id,
+          },
+        ],
+      };
+    });
+  },
+  updateUtilityTypeDefinition: (id, patch) =>
+    set((state) => ({
+      utilityTypeDefinitions: state.utilityTypeDefinitions.map((d) => {
+        if (d.id !== id) return d;
+        return {
+          ...d,
+          ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),
+          ...(patch.defaultUsageUnit !== undefined
+            ? { defaultUsageUnit: patch.defaultUsageUnit.trim() }
+            : {}),
+          ...(patch.badgeColor !== undefined &&
+          UTILITY_BADGE_COLOR_PRESETS.some((p) => p.id === patch.badgeColor)
+            ? { badgeColor: patch.badgeColor }
+            : {}),
+        };
+      }),
+    })),
+  removeUtilityTypeDefinition: (id) => {
+    const state = get();
+    if (state.utilityTypeDefinitions.length <= 1) return false;
+    if (state.utilityEntries.some((e) => e.utility === id)) return false;
+    set({
+      utilityTypeDefinitions: state.utilityTypeDefinitions.filter((d) => d.id !== id),
+    });
+    return true;
+  },
+  utilityTypeEntryCount: (id) =>
+    get().utilityEntries.filter((e) => e.utility === id).length,
   saveState: async () => {
     const state = useStore.getState();
     await saveToFile(
@@ -164,7 +257,11 @@ export const useStore = create<StoreState>((set) => ({
   loadState: async () => {
     try {
       const loadedState = pickLoadedProject(await openFile());
-      if (loadedState.projectTitle != null || loadedState.utilityEntries != null) {
+      if (
+        loadedState.projectTitle != null ||
+        loadedState.utilityEntries != null ||
+        loadedState.utilityTypeDefinitions != null
+      ) {
         set(migrateLoadedState(loadedState));
         return true;
       }
@@ -175,7 +272,7 @@ export const useStore = create<StoreState>((set) => ({
     }
   },
   resetState: () => {
-    set(initialState);
+    set({ ...initialAppState, expenseDrawerNonce: 0, expenseDrawerIntent: null });
     window.handle = undefined;
   },
 }));
