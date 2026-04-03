@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -25,12 +26,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  entryTotalCost,
+  formatWholeDollars,
+  parseBillingYearMonth,
+} from "@/lib/utils";
 import { useStore } from "@/store/useStore";
-import type { UtilityEntry } from "@/types/utility";
 
-function formatWholeDollars(n: number): string {
-  const rounded = Math.round(Number.isFinite(n) ? n : 0);
-  return `$${rounded.toLocaleString("en-US")}`;
+/** Select value: one line per expense type (not a real utility id). */
+const CHART_ALL_EXPENSES = "__all_expenses__";
+
+const USAGE_FIELD_PREFIX = "__u_";
+
+function usageFieldKey(utilityId: string): string {
+  return `${USAGE_FIELD_PREFIX}${utilityId}`;
 }
 
 const MONTH_SHORT = [
@@ -48,18 +57,6 @@ const MONTH_SHORT = [
   "Dec",
 ] as const;
 
-function parseYmdParts(s: string): { year: number; month: number } | null {
-  const [ys, ms] = s.trim().split("-");
-  const year = Number(ys);
-  const month = Number(ms);
-  if (!year || !month || month < 1 || month > 12) return null;
-  return { year, month };
-}
-
-function entryTotalCost(entry: UtilityEntry): number {
-  return entry.costItems.reduce((sum, item) => sum + item.totalCost, 0);
-}
-
 /** SVG stroke color from theme tokens (matches utility badge color ids). */
 function strokeForBadgeColor(badgeColor: string): string {
   if (badgeColor === "primary") return "var(--primary)";
@@ -67,70 +64,91 @@ function strokeForBadgeColor(badgeColor: string): string {
   return `var(--${badgeColor})`;
 }
 
-export function CostChart() {
+export function CostChart({ year }: { year: number }) {
   const utilityEntries = useStore((s) => s.utilityEntries);
   const utilityTypeDefinitions = useStore((s) => s.utilityTypeDefinitions);
 
-  const [utilityId, setUtilityId] = useState<string>("");
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [utilityId, setUtilityId] = useState<string>(CHART_ALL_EXPENSES);
 
-  const resolvedUtilityId = useMemo(
-    () => utilityId || utilityTypeDefinitions[0]?.id || "",
-    [utilityId, utilityTypeDefinitions],
-  );
+  const showAllTypes = utilityId === CHART_ALL_EXPENSES;
 
-  const yearOptions = useMemo(() => {
-    const ys = new Set<number>();
-    for (const e of utilityEntries) {
-      const p = parseYmdParts(e.dateStart);
-      if (p) ys.add(p.year);
+  const selectedDef = utilityTypeDefinitions.find((d) => d.id === utilityId);
+
+  const { chartData, maxCost } = useMemo(() => {
+    if (!showAllTypes) {
+      const costByMonth = new Array(12).fill(0) as number[];
+      const usageByMonth = new Array(12).fill(0) as number[];
+      for (const entry of utilityEntries) {
+        if (entry.utility !== utilityId) continue;
+        const p = parseBillingYearMonth(entry.dateStart);
+        if (!p || p.year !== year) continue;
+        const i = p.month - 1;
+        costByMonth[i] += entryTotalCost(entry);
+        usageByMonth[i] += entry.usage;
+      }
+      const data = MONTH_SHORT.map((label, i) => ({
+        month: label,
+        monthIndex: i + 1,
+        cost: Math.round(costByMonth[i]),
+        usage: usageByMonth[i],
+      }));
+      const max = data.reduce((m, d) => Math.max(m, d.cost), 0);
+      return { chartData: data, maxCost: max };
     }
-    ys.add(new Date().getFullYear());
-    return [...ys].sort((a, b) => b - a);
-  }, [utilityEntries]);
 
-  useEffect(() => {
-    if (yearOptions.length > 0 && !yearOptions.includes(year)) {
-      setYear(yearOptions[0]);
+    const defIds = new Set(utilityTypeDefinitions.map((d) => d.id));
+    const costByUtility: Record<string, number[]> = {};
+    const usageByUtility: Record<string, number[]> = {};
+    for (const d of utilityTypeDefinitions) {
+      costByUtility[d.id] = new Array(12).fill(0);
+      usageByUtility[d.id] = new Array(12).fill(0);
     }
-  }, [yearOptions, year]);
-
-  const selectedDef = utilityTypeDefinitions.find(
-    (d) => d.id === resolvedUtilityId,
-  );
-
-  const chartData = useMemo(() => {
-    const costByMonth = new Array(12).fill(0) as number[];
-    const usageByMonth = new Array(12).fill(0) as number[];
     for (const entry of utilityEntries) {
-      if (entry.utility !== resolvedUtilityId) continue;
-      const p = parseYmdParts(entry.dateStart);
+      if (!defIds.has(entry.utility)) continue;
+      const p = parseBillingYearMonth(entry.dateStart);
       if (!p || p.year !== year) continue;
       const i = p.month - 1;
-      costByMonth[i] += entryTotalCost(entry);
-      usageByMonth[i] += entry.usage;
+      costByUtility[entry.utility][i] += entryTotalCost(entry);
+      usageByUtility[entry.utility][i] += entry.usage;
     }
-    return MONTH_SHORT.map((label, i) => ({
-      month: label,
-      monthIndex: i + 1,
-      cost: Math.round(costByMonth[i]),
-      usage: usageByMonth[i],
-    }));
-  }, [utilityEntries, resolvedUtilityId, year]);
-
-  const maxCost = useMemo(
-    () => chartData.reduce((m, d) => Math.max(m, d.cost), 0),
-    [chartData],
-  );
+    const data = MONTH_SHORT.map((label, i) => {
+      const row: Record<string, string | number> = {
+        month: label,
+        monthIndex: i + 1,
+      };
+      for (const d of utilityTypeDefinitions) {
+        row[d.id] = Math.round(costByUtility[d.id][i]);
+        row[usageFieldKey(d.id)] = usageByUtility[d.id][i];
+      }
+      return row;
+    });
+    let max = 0;
+    for (const d of utilityTypeDefinitions) {
+      for (let i = 0; i < 12; i++) {
+        max = Math.max(max, Math.round(costByUtility[d.id][i]));
+      }
+    }
+    return { chartData: data, maxCost: max };
+  }, [utilityEntries, utilityId, showAllTypes, year, utilityTypeDefinitions]);
 
   const stroke =
-    selectedDef != null
-      ? strokeForBadgeColor(selectedDef.badgeColor)
-      : "var(--chart-1)";
+    showAllTypes || selectedDef == null
+      ? "var(--chart-1)"
+      : strokeForBadgeColor(selectedDef.badgeColor);
 
   const hasTypes = utilityTypeDefinitions.length > 0;
-  const typeLabel = selectedDef?.label ?? "Expense type";
+  const typeLabel = showAllTypes
+    ? "All expenses"
+    : (selectedDef?.label ?? "Expense type");
   const usageUnitLabel = selectedDef?.defaultUsageUnit ?? "units";
+
+  const unitByUtilityId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of utilityTypeDefinitions) {
+      m.set(d.id, d.defaultUsageUnit);
+    }
+    return m;
+  }, [utilityTypeDefinitions]);
 
   return (
     <Card>
@@ -138,38 +156,21 @@ export function CostChart() {
         <div className="space-y-1">
           <CardTitle className="text-base">Cost by month</CardTitle>
           <CardDescription>
-            Total billed cost for one expense type in {year} (allocated to the
-            billing period start month).
+            {showAllTypes
+              ? `One line per expense type in ${year} (cost allocated to the billing period start month).`
+              : `Total billed cost for one expense type in ${year} (allocated to the billing period start month).`}
           </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Select
-            value={resolvedUtilityId || undefined}
-            onValueChange={setUtilityId}
-            disabled={!hasTypes}
-          >
-            <SelectTrigger className="w-[200px]" size="sm" aria-label="Expense type">
+          <Select value={utilityId} onValueChange={setUtilityId} disabled={!hasTypes}>
+            <SelectTrigger className="w-[220px]" size="sm" aria-label="Expense type">
               <SelectValue placeholder="Expense type" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={CHART_ALL_EXPENSES}>All</SelectItem>
               {utilityTypeDefinitions.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
                   {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(year)}
-            onValueChange={(v) => setYear(Number(v))}
-          >
-            <SelectTrigger className="w-[100px]" size="sm" aria-label="Year">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  {y}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -183,14 +184,21 @@ export function CostChart() {
           </p>
         ) : maxCost === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            No {typeLabel} expenses with a start date in {year}.
+            No{" "}
+            {showAllTypes ? "expenses" : `${typeLabel} expenses`} with a start
+            date in {year}.
           </p>
         ) : (
           <div className="h-[280px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                margin={{
+                  top: 8,
+                  right: 8,
+                  left: 0,
+                  bottom: showAllTypes ? 28 : 0,
+                }}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -221,15 +229,69 @@ export function CostChart() {
                   }}
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
+
+                    if (showAllTypes) {
+                      const row = payload[0]?.payload as Record<string, unknown>;
+                      return (
+                        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                          <p className="font-medium text-popover-foreground">
+                            {label} {year}
+                          </p>
+                          {payload.map((item) => {
+                            const key = item.dataKey;
+                            if (
+                              typeof key !== "string" ||
+                              key.startsWith(USAGE_FIELD_PREFIX)
+                            ) {
+                              return null;
+                            }
+                            const uRaw = row[usageFieldKey(key)];
+                            const usage =
+                              typeof uRaw === "number" && Number.isFinite(uRaw)
+                                ? uRaw
+                                : 0;
+                            const unit = unitByUtilityId.get(key) ?? "units";
+                            const cost = Number(item.value);
+                            const safeCost = Number.isFinite(cost) ? cost : 0;
+                            return (
+                              <div
+                                key={key}
+                                className="space-y-0.5 border-b border-border pb-2 last:border-0 last:pb-0"
+                              >
+                                <p className="text-muted-foreground">
+                                  <span
+                                    className="me-1 inline-block size-2 rounded-full align-middle"
+                                    style={{
+                                      backgroundColor: item.color as string,
+                                    }}
+                                    aria-hidden
+                                  />
+                                  {item.name}:{" "}
+                                  <span className="text-popover-foreground">
+                                    {formatWholeDollars(safeCost)}
+                                  </span>
+                                </p>
+                                <p className="ps-3 text-[11px] text-muted-foreground">
+                                  Consumption:{" "}
+                                  <span className="text-popover-foreground">
+                                    {usage.toLocaleString("en-US", {
+                                      maximumFractionDigits: 2,
+                                    })}{" "}
+                                    {unit}
+                                  </span>
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+
                     const row = payload[0]?.payload as {
                       cost: number;
                       usage: number;
                     };
                     const cost = Number.isFinite(row.cost) ? row.cost : 0;
-                    const usage = Number.isFinite(row.usage) ? row.usage : 0;
-                    const usageText = usage.toLocaleString("en-US", {
-                      maximumFractionDigits: 2,
-                    });
                     return (
                       <div className="space-y-1">
                         <p className="font-medium text-popover-foreground">
@@ -244,22 +306,49 @@ export function CostChart() {
                         <p className="text-muted-foreground">
                           Consumption:{" "}
                           <span className="text-popover-foreground">
-                            {usageText} {usageUnitLabel}
+                            {(Number.isFinite(row.usage) ? row.usage : 0).toLocaleString(
+                              "en-US",
+                              { maximumFractionDigits: 2 },
+                            )}{" "}
+                            {usageUnitLabel}
                           </span>
                         </p>
                       </div>
                     );
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="cost"
-                  name={typeLabel}
-                  stroke={stroke}
-                  strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 0 }}
-                  activeDot={{ r: 5 }}
-                />
+                {showAllTypes ? (
+                  <>
+                    {utilityTypeDefinitions.map((d) => (
+                      <Line
+                        key={d.id}
+                        type="monotone"
+                        dataKey={d.id}
+                        name={d.label}
+                        stroke={strokeForBadgeColor(d.badgeColor)}
+                        strokeWidth={2}
+                        dot={{ r: 2, strokeWidth: 0 }}
+                        activeDot={{ r: 4 }}
+                      />
+                    ))}
+                    <Legend
+                      wrapperStyle={{ fontSize: 11 }}
+                      formatter={(value) => (
+                        <span className="text-muted-foreground">{value}</span>
+                      )}
+                    />
+                  </>
+                ) : (
+                  <Line
+                    type="monotone"
+                    dataKey="cost"
+                    name={typeLabel}
+                    stroke={stroke}
+                    strokeWidth={2}
+                    dot={{ r: 3, strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>

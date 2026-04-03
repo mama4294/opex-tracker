@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import type { UtilityEntry } from "@/types/utility";
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -30,3 +32,23 @@ export const formatMoney = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+/** Year and month from `dateStart` (`yyyy-MM-dd`), for billing-period allocation. */
+export function parseBillingYearMonth(
+  s: string,
+): { year: number; month: number } | null {
+  const [ys, ms] = s.trim().split("-");
+  const year = Number(ys);
+  const month = Number(ms);
+  if (!year || !month || month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+export function entryTotalCost(entry: UtilityEntry): number {
+  return entry.costItems.reduce((sum, item) => sum + item.totalCost, 0);
+}
+
+export function formatWholeDollars(n: number): string {
+  const rounded = Math.round(Number.isFinite(n) ? n : 0);
+  return `$${rounded.toLocaleString("en-US")}`;
+}
