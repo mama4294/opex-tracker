@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Card,
   CardAction,
@@ -19,12 +19,40 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/useStore";
 import { utilityBadgeClassForColorId, utilityLabelFor } from "@/types/utility";
-import { ChevronRight, Pencil, Plus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+} from "lucide-react";
 import { cn, formatDateRange, formatMoney } from "@/lib/utils";
 
 const COL_COUNT = 8;
+
+type SortKey = "date" | "type";
+
+function SortHeaderIcon({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction: "asc" | "desc";
+}) {
+  if (!active) {
+    return <ArrowUpDown className="size-3 shrink-0 opacity-45" aria-hidden />;
+  }
+  return direction === "asc" ? (
+    <ArrowUp className="size-3 shrink-0" aria-hidden />
+  ) : (
+    <ArrowDown className="size-3 shrink-0" aria-hidden />
+  );
+}
 
 export function ExpensesTable() {
   const utilityEntries = useStore((state) => state.utilityEntries);
@@ -37,10 +65,52 @@ export function ExpensesTable() {
   );
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const sortedEntries = [...utilityEntries].sort((a, b) =>
-    b.dateStart.localeCompare(a.dateStart),
-  );
+  const onSortClick = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let list = utilityEntries;
+    if (q) {
+      list = utilityEntries.filter((entry) => {
+        const typeLabel = utilityLabelFor(
+          utilityTypeDefinitions,
+          entry.utility,
+        ).toLowerCase();
+        const desc = (entry.description?.trim() ?? "").toLowerCase();
+        return typeLabel.includes(q) || desc.includes(q);
+      });
+    }
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "date") {
+        cmp = a.dateStart.localeCompare(b.dateStart);
+        if (cmp === 0) cmp = a.id.localeCompare(b.id);
+      } else {
+        const la = utilityLabelFor(
+          utilityTypeDefinitions,
+          a.utility,
+        ).toLowerCase();
+        const lb = utilityLabelFor(
+          utilityTypeDefinitions,
+          b.utility,
+        ).toLowerCase();
+        cmp = la.localeCompare(lb);
+        if (cmp === 0) cmp = a.dateStart.localeCompare(b.dateStart);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [utilityEntries, utilityTypeDefinitions, searchQuery, sortKey, sortDir]);
 
   return (
     <Card>
@@ -61,16 +131,76 @@ export function ExpensesTable() {
         </CardAction>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-4">
+        <div className="relative max-w-md">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search type or description…"
+            className="ps-9"
+            aria-label="Search expenses by type or description"
+          />
+        </div>
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]" />
-                <TableHead>Type</TableHead>
+                <TableHead
+                  aria-sort={
+                    sortKey === "type"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSortClick("type")}
+                    className={cn(
+                      "-ms-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium hover:bg-muted/80",
+                      sortKey === "type" ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    Type
+                    <SortHeaderIcon
+                      active={sortKey === "type"}
+                      direction={sortDir}
+                    />
+                  </button>
+                </TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="min-w-[140px] max-w-[240px]">
-                  Period
+                <TableHead
+                  className="min-w-[140px] max-w-[240px]"
+                  aria-sort={
+                    sortKey === "date"
+                      ? sortDir === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSortClick("date")}
+                    className={cn(
+                      "-ms-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-left text-xs font-medium hover:bg-muted/80",
+                      sortKey === "date" ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    Period
+                    <SortHeaderIcon
+                      active={sortKey === "date"}
+                      direction={sortDir}
+                    />
+                  </button>
                 </TableHead>
 
                 <TableHead className="text-right">Usage</TableHead>
@@ -81,7 +211,7 @@ export function ExpensesTable() {
             </TableHeader>
 
             <TableBody>
-              {sortedEntries.length === 0 ? (
+              {utilityEntries.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={COL_COUNT}
@@ -91,8 +221,17 @@ export function ExpensesTable() {
                     started.
                   </TableCell>
                 </TableRow>
+              ) : filteredAndSorted.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={COL_COUNT}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    No expenses match your search.
+                  </TableCell>
+                </TableRow>
               ) : (
-                sortedEntries.map((entry) => {
+                filteredAndSorted.map((entry) => {
                   const defIndex = utilityTypeDefinitions.findIndex(
                     (d) => d.id === entry.utility,
                   );
