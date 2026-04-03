@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CostChart } from "@/components/cost-chart";
 import { useStore } from "@/store/useStore";
 import { formatMoney } from "@/lib/utils";
 
@@ -57,6 +58,8 @@ export function OverviewContent() {
           </CardContent>
         </Card>
       </div>
+
+      <CostChart />
 
       <Card>
         <CardHeader>
