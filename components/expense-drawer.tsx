@@ -118,6 +118,8 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  /** Add flow prefilled from an existing row (title + submit create a new entry). */
+  const [openedAsDuplicate, setOpenedAsDuplicate] = useState(false);
   /** While set, that row's total cost shows raw text for editing; otherwise formatted. */
   const [focusedTotalCostRowId, setFocusedTotalCostRowId] = useState<
     string | null
@@ -151,7 +153,36 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
       costItems: [emptyCostRow()],
     });
     setEditingEntryId(null);
+    setOpenedAsDuplicate(false);
   }, []);
+
+  const openDuplicateDrawer = useCallback(
+    (entryId: string) => {
+      const entry = utilityEntries.find((item) => item.id === entryId);
+      if (!entry) return;
+
+      setFocusedTotalCostRowId(null);
+      setOpenedAsDuplicate(true);
+      setEditingEntryId(null);
+      setFormData({
+        dateStart: entry.dateStart,
+        dateEnd: entry.dateEnd,
+        description: entry.description ?? "",
+        utility: entry.utility,
+        usage: String(entry.usage),
+        usageUnit: entry.usageUnit,
+        costItems:
+          entry.costItems.length > 0
+            ? entry.costItems.map((item) => ({
+                ...costItemToRow(item),
+                id: newRowId(),
+              }))
+            : [emptyCostRow()],
+      });
+      setIsDrawerOpen(true);
+    },
+    [utilityEntries],
+  );
 
   const openEditDrawer = useCallback(
     (entryId: string) => {
@@ -159,6 +190,7 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
       if (!entry) return;
 
       setEditingEntryId(entry.id);
+      setOpenedAsDuplicate(false);
       setFormData({
         dateStart: entry.dateStart,
         dateEnd: entry.dateEnd,
@@ -189,13 +221,21 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
       if (intent.mode === "add") {
         resetForm();
         setIsDrawerOpen(true);
+      } else if (intent.mode === "duplicate") {
+        openDuplicateDrawer(intent.entryId);
       } else {
         openEditDrawer(intent.entryId);
       }
       clearExpenseDrawerIntent();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [expenseDrawerNonce, resetForm, openEditDrawer, clearExpenseDrawerIntent]);
+  }, [
+    expenseDrawerNonce,
+    resetForm,
+    openEditDrawer,
+    openDuplicateDrawer,
+    clearExpenseDrawerIntent,
+  ]);
 
   const removeCostRow = (rowId: string) => {
     setFocusedTotalCostRowId((id) => (id === rowId ? null : id));
@@ -266,7 +306,7 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
     if (defs.length === 0 || !formData.utility.trim()) {
       return;
     }
-    const entryId = editingEntryId ?? String(utilityEntries.length + 1);
+    const entryId = editingEntryId ?? crypto.randomUUID();
 
     const usage = Number(formData.usage);
     const costItems = rowsToCostItems(formData.costItems, entryId);
@@ -358,12 +398,18 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
           <DrawerHeader className="flex flex-row items-center justify-between gap-2 border-b border-border text-left">
             <div className="space-y-1">
               <DrawerTitle className="text-lg font-semibold">
-                {editingEntryId ? "Edit Expense" : "Add Utility Entry"}
+                {editingEntryId
+                  ? "Edit Expense"
+                  : openedAsDuplicate
+                    ? "Duplicate expense"
+                    : "Add Utility Entry"}
               </DrawerTitle>
               <DrawerDescription className="sr-only">
                 {editingEntryId
                   ? "Update description, dates, usage, and cost line items for this entry."
-                  : "Enter description, dates, usage, and one or more cost line items."}
+                  : openedAsDuplicate
+                    ? "Review the copied entry and save to create a new record."
+                    : "Enter description, dates, usage, and one or more cost line items."}
               </DrawerDescription>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -612,7 +658,11 @@ export default function ExpenseDrawer({ showTrigger = true }: ExpenseDrawerProps
 
             <DrawerFooter className="mt-auto border-t border-border px-0 pt-4">
               <Button type="submit" className="w-full">
-                {editingEntryId ? "Save Changes" : "Save"}
+                {editingEntryId
+                  ? "Save Changes"
+                  : openedAsDuplicate
+                    ? "Save as new expense"
+                    : "Save"}
               </Button>
             </DrawerFooter>
           </form>

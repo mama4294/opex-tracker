@@ -27,6 +27,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   ChevronRight,
+  Copy,
   Pencil,
   Plus,
   Search,
@@ -62,6 +63,9 @@ export function ExpensesTable() {
   );
   const requestExpenseDrawerEdit = useStore(
     (state) => state.requestExpenseDrawerEdit,
+  );
+  const requestExpenseDrawerDuplicate = useStore(
+    (state) => state.requestExpenseDrawerDuplicate,
   );
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -333,19 +337,34 @@ export function ExpensesTable() {
                         </TableCell>
 
                         <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              requestExpenseDrawerEdit(entry.id);
-                            }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit expense</span>
-                          </Button>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestExpenseDrawerDuplicate(entry.id);
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                              <span className="sr-only">Duplicate expense</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestExpenseDrawerEdit(entry.id);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit expense</span>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
 

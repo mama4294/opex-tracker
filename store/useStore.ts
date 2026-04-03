@@ -80,10 +80,11 @@ function pickLoadedProject(raw: unknown): PersistedProject {
   };
 }
 
-/** Signals ExpenseDrawer to open from anywhere (add vs edit by id). Bump nonce + set intent; drawer consumes and clears intent. */
+/** Signals ExpenseDrawer to open from anywhere (add vs edit vs duplicate by id). Bump nonce + set intent; drawer consumes and clears intent. */
 export type ExpenseDrawerIntent =
   | { mode: "add" }
-  | { mode: "edit"; entryId: string };
+  | { mode: "edit"; entryId: string }
+  | { mode: "duplicate"; entryId: string };
 
 interface StoreState {
   projectTitle: string;
@@ -114,6 +115,7 @@ interface StoreState {
   expenseDrawerIntent: ExpenseDrawerIntent | null;
   requestExpenseDrawerAdd: () => void;
   requestExpenseDrawerEdit: (entryId: string) => void;
+  requestExpenseDrawerDuplicate: (entryId: string) => void;
   clearExpenseDrawerIntent: () => void;
 }
 
@@ -172,6 +174,11 @@ export const useStore = create<StoreState>((set, get) => ({
   requestExpenseDrawerEdit: (entryId: string) =>
     set((state) => ({
       expenseDrawerIntent: { mode: "edit", entryId },
+      expenseDrawerNonce: state.expenseDrawerNonce + 1,
+    })),
+  requestExpenseDrawerDuplicate: (entryId: string) =>
+    set((state) => ({
+      expenseDrawerIntent: { mode: "duplicate", entryId },
       expenseDrawerNonce: state.expenseDrawerNonce + 1,
     })),
   clearExpenseDrawerIntent: () => set({ expenseDrawerIntent: null }),
