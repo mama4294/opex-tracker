@@ -27,6 +27,28 @@ export const formatDate = (dateString: string) => {
 export const formatDateRange = (start: string, end: string) =>
   `${formatDate(start)} - ${formatDate(end)}`;
 
+/** If start/end span exactly one full calendar month (local), return long month + year; else range text. */
+export function formatExpensePeriodLabel(start: string, end: string): string {
+  const a = parseLocalYmd(start);
+  const b = parseLocalYmd(end);
+  if (!a || !b) return formatDateRange(start, end);
+
+  if (
+    a.getFullYear() !== b.getFullYear() ||
+    a.getMonth() !== b.getMonth() ||
+    a.getDate() !== 1
+  ) {
+    return formatDateRange(start, end);
+  }
+
+  const lastDay = new Date(a.getFullYear(), a.getMonth() + 1, 0).getDate();
+  if (b.getDate() !== lastDay) {
+    return formatDateRange(start, end);
+  }
+
+  return a.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
 export const formatMoney = (n: number) =>
   n.toLocaleString("en-US", {
     minimumFractionDigits: 2,

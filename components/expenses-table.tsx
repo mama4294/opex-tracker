@@ -32,7 +32,12 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { cn, formatDateRange, formatMoney } from "@/lib/utils";
+import {
+  cn,
+  formatDateRange,
+  formatExpensePeriodLabel,
+  formatMoney,
+} from "@/lib/utils";
 
 const COL_COUNT = 8;
 
@@ -314,8 +319,17 @@ export function ExpensesTable() {
                           )}
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap">
-                          {formatDateRange(entry.dateStart, entry.dateEnd)}
+                        <TableCell
+                          className="whitespace-nowrap"
+                          title={formatDateRange(
+                            entry.dateStart,
+                            entry.dateEnd,
+                          )}
+                        >
+                          {formatExpensePeriodLabel(
+                            entry.dateStart,
+                            entry.dateEnd,
+                          )}
                         </TableCell>
 
                         <TableCell className="text-right">
