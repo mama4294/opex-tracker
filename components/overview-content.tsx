@@ -214,7 +214,10 @@ export function OverviewContent() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-sm text-muted-foreground" id="overview-year-label">
+          <span
+            className="text-sm text-muted-foreground"
+            id="overview-year-label"
+          >
             Year
           </span>
           <Select
@@ -252,10 +255,10 @@ export function OverviewContent() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Average monthly expenses</CardTitle>
-            <CardDescription>
-              {averageMonthlyDescription(year)}
-            </CardDescription>
+            <CardTitle className="text-base">
+              Average monthly expenses
+            </CardTitle>
+            <CardDescription>{averageMonthlyDescription(year)}</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold tabular-nums">
@@ -367,24 +370,6 @@ export function OverviewContent() {
       <UnitCostChart year={year} />
 
       <ConsumptionChart year={year} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Next steps</CardTitle>
-          <CardDescription>
-            Add or review utility bills and line-item costs.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild className="gap-2">
-            <Link href="/expenses">
-              <Receipt className="size-4" aria-hidden />
-              Go to expenses
-              <ArrowRight className="size-4 opacity-70" aria-hidden />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
