@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ConsumptionChart } from "@/components/consumption-chart";
 import { CostChart } from "@/components/cost-chart";
 import { UnitCostChart } from "@/components/unit-cost-chart";
 import {
@@ -364,6 +365,8 @@ export function OverviewContent() {
       <CostChart year={year} />
 
       <UnitCostChart year={year} />
+
+      <ConsumptionChart year={year} />
 
       <Card>
         <CardHeader>
