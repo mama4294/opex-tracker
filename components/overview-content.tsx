@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CostChart } from "@/components/cost-chart";
+import { UnitCostChart } from "@/components/unit-cost-chart";
 import {
   entryTotalCost,
   formatWholeDollars,
@@ -146,6 +147,8 @@ export function OverviewContent() {
       </div>
 
       <CostChart year={year} />
+
+      <UnitCostChart year={year} />
 
       <Card>
         <CardHeader>
