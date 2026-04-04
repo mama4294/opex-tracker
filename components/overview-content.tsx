@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { ConsumptionChart } from "@/components/consumption-chart";
 import { CostChart } from "@/components/cost-chart";
+import { ExpenseFlowSankey } from "@/components/expense-flow-sankey";
 import { UnitCostChart } from "@/components/unit-cost-chart";
 import {
   cn,
@@ -364,6 +365,8 @@ export function OverviewContent() {
           )}
         </CardContent>
       </Card>
+
+      <ExpenseFlowSankey year={year} />
 
       <CostChart year={year} />
 

@@ -28,6 +28,7 @@ import {
 import {
   entryTotalCost,
   formatMoney,
+  formatWholeDollars,
   parseBillingYearMonth,
 } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
@@ -208,7 +209,7 @@ export function UnitCostChart({ year }: { year: number }) {
                         <p className="text-muted-foreground">
                           Total cost:{" "}
                           <span className="text-popover-foreground">
-                            ${formatMoney(row.monthCost)}
+                            {formatWholeDollars(row.monthCost)}
                           </span>
                         </p>
                         <p className="text-muted-foreground">
