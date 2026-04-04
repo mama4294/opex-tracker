@@ -66,6 +66,11 @@ function getPersistableSnapshot(state: StoreState): PersistedProject {
   };
 }
 
+/** Stable JSON for dirty checks (must match how we set `lastPersistedJson`). */
+function persistableJson(state: StoreState): string {
+  return JSON.stringify(getPersistableSnapshot(state));
+}
+
 function pickLoadedProject(raw: unknown): PersistedProject {
   if (!raw || typeof raw !== "object") return {};
   const o = raw as Record<string, unknown>;
@@ -117,6 +122,8 @@ interface StoreState {
   requestExpenseDrawerEdit: (entryId: string) => void;
   requestExpenseDrawerDuplicate: (entryId: string) => void;
   clearExpenseDrawerIntent: () => void;
+  /** Last saved / loaded persisted snapshot; used to detect unsaved edits. */
+  lastPersistedJson: string;
 }
 
 const electricEntry: UtilityEntry = {
@@ -162,8 +169,15 @@ const initialAppState = {
   utilityTypeDefinitions: DEFAULT_UTILITY_TYPE_DEFINITIONS,
 };
 
+const initialPersistedJson = JSON.stringify(
+  getPersistableSnapshot({
+    ...initialAppState,
+  } as unknown as StoreState),
+);
+
 export const useStore = create<StoreState>((set, get) => ({
   ...initialAppState,
+  lastPersistedJson: initialPersistedJson,
   expenseDrawerNonce: 0,
   expenseDrawerIntent: null,
   requestExpenseDrawerAdd: () =>
@@ -256,10 +270,12 @@ export const useStore = create<StoreState>((set, get) => ({
       `${state.projectTitle}.json`,
       window.handle,
     );
+    set({ lastPersistedJson: persistableJson(get()) });
   },
   saveAsState: async () => {
     const state = useStore.getState();
     await saveToFile(getPersistableSnapshot(state), `${state.projectTitle}.json`);
+    set({ lastPersistedJson: persistableJson(get()) });
   },
   loadState: async () => {
     try {
@@ -270,6 +286,7 @@ export const useStore = create<StoreState>((set, get) => ({
         loadedState.utilityTypeDefinitions != null
       ) {
         set(migrateLoadedState(loadedState));
+        set({ lastPersistedJson: persistableJson(get()) });
         return true;
       }
       return false;
@@ -279,7 +296,16 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   },
   resetState: () => {
-    set({ ...initialAppState, expenseDrawerNonce: 0, expenseDrawerIntent: null });
+    set({
+      ...initialAppState,
+      lastPersistedJson: initialPersistedJson,
+      expenseDrawerNonce: 0,
+      expenseDrawerIntent: null,
+    });
     window.handle = undefined;
   },
 }));
+
+/** True when persisted fields differ from the last saved/loaded snapshot. */
+export const selectHasUnsavedChanges = (state: StoreState): boolean =>
+  persistableJson(state) !== state.lastPersistedJson;

@@ -9,7 +9,7 @@ import {
   SaveAll,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useStore } from "@/store/useStore";
+import { selectHasUnsavedChanges, useStore } from "@/store/useStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ export default function Header() {
   const saveAsState = useStore((s) => s.saveAsState);
   const loadState = useStore((s) => s.loadState);
   const resetState = useStore((s) => s.resetState);
+  const hasUnsavedChanges = useStore(selectHasUnsavedChanges);
 
   const handleNew = () => {
     resetState();
@@ -52,16 +53,27 @@ export default function Header() {
   return (
     <header className="shrink-0 border-b border-border bg-card">
       <div className="flex w-full items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Factory className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold">Factory Operations</h1>
-              <p className="text-sm text-muted-foreground">Expense Dashboard</p>
-            </div>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Factory className="h-5 w-5" />
           </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold">Factory Operations</h1>
+            <p className="text-sm text-muted-foreground">Expense Dashboard</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {hasUnsavedChanges ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                void handleSave("save");
+              }}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -69,7 +81,7 @@ export default function Header() {
                 <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onSelect={() => {
                   handleNew();
