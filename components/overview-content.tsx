@@ -31,6 +31,7 @@ import {
 import { ConsumptionChart } from "@/components/consumption-chart";
 import { CostChart } from "@/components/cost-chart";
 import { ExpenseFlowSankey } from "@/components/expense-flow-sankey";
+import { OverviewUtilityPieChart } from "@/components/overview-utility-pie-chart";
 import { UnitCostChart } from "@/components/unit-cost-chart";
 import {
   cn,
@@ -274,6 +275,8 @@ export function OverviewContent() {
           </CardContent>
         </Card>
       </div>
+
+      <OverviewUtilityPieChart year={year} />
 
       <Card>
         <CardHeader className="pb-2">
