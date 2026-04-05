@@ -64,22 +64,33 @@ function strokeForBadgeColor(badgeColor: string): string {
   return `var(--${badgeColor})`;
 }
 
-export function CostChart({ year }: { year: number }) {
+export function CostChart({
+  year,
+  lockedUtilityId,
+}: {
+  year: number;
+  /** When set, chart shows only this expense type and hides the type selector. */
+  lockedUtilityId?: string;
+}) {
   const utilityEntries = useStore((s) => s.utilityEntries);
   const utilityTypeDefinitions = useStore((s) => s.utilityTypeDefinitions);
 
   const [utilityId, setUtilityId] = useState<string>(CHART_ALL_EXPENSES);
 
-  const showAllTypes = utilityId === CHART_ALL_EXPENSES;
+  const showAllTypes =
+    lockedUtilityId == null && utilityId === CHART_ALL_EXPENSES;
+  const effectiveUtilityId = lockedUtilityId ?? utilityId;
 
-  const selectedDef = utilityTypeDefinitions.find((d) => d.id === utilityId);
+  const selectedDef = utilityTypeDefinitions.find(
+    (d) => d.id === effectiveUtilityId,
+  );
 
   const { chartData, maxCost } = useMemo(() => {
     if (!showAllTypes) {
       const costByMonth = new Array(12).fill(0) as number[];
       const usageByMonth = new Array(12).fill(0) as number[];
       for (const entry of utilityEntries) {
-        if (entry.utility !== utilityId) continue;
+        if (entry.utility !== effectiveUtilityId) continue;
         const p = parseBillingYearMonth(entry.dateStart);
         if (!p || p.year !== year) continue;
         const i = p.month - 1;
@@ -129,7 +140,13 @@ export function CostChart({ year }: { year: number }) {
       }
     }
     return { chartData: data, maxCost: max };
-  }, [utilityEntries, utilityId, showAllTypes, year, utilityTypeDefinitions]);
+  }, [
+    utilityEntries,
+    effectiveUtilityId,
+    showAllTypes,
+    year,
+    utilityTypeDefinitions,
+  ]);
 
   const stroke =
     showAllTypes || selectedDef == null
@@ -161,21 +178,27 @@ export function CostChart({ year }: { year: number }) {
               : `Total billed cost for one expense type in ${year} (allocated to the billing period start month).`}
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Select value={utilityId} onValueChange={setUtilityId} disabled={!hasTypes}>
-            <SelectTrigger className="w-[220px]" size="sm" aria-label="Expense type">
-              <SelectValue placeholder="Expense type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={CHART_ALL_EXPENSES}>All</SelectItem>
-              {utilityTypeDefinitions.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!lockedUtilityId ? (
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Select
+              value={utilityId}
+              onValueChange={setUtilityId}
+              disabled={!hasTypes}
+            >
+              <SelectTrigger className="w-[220px]" size="sm" aria-label="Expense type">
+                <SelectValue placeholder="Expense type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={CHART_ALL_EXPENSES}>All</SelectItem>
+                {utilityTypeDefinitions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         {!hasTypes ? (

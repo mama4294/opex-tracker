@@ -61,15 +61,22 @@ function formatUsageAxis(v: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
-export function ConsumptionChart({ year }: { year: number }) {
+export function ConsumptionChart({
+  year,
+  lockedUtilityId,
+}: {
+  year: number;
+  lockedUtilityId?: string;
+}) {
   const utilityEntries = useStore((s) => s.utilityEntries);
   const utilityTypeDefinitions = useStore((s) => s.utilityTypeDefinitions);
 
   const [utilityId, setUtilityId] = useState<string>("");
 
   const resolvedUtilityId = useMemo(
-    () => utilityId || utilityTypeDefinitions[0]?.id || "",
-    [utilityId, utilityTypeDefinitions],
+    () =>
+      lockedUtilityId ?? (utilityId || utilityTypeDefinitions[0]?.id || ""),
+    [lockedUtilityId, utilityId, utilityTypeDefinitions],
   );
 
   const selectedDef = utilityTypeDefinitions.find(
@@ -117,24 +124,26 @@ export function ConsumptionChart({ year }: { year: number }) {
             month ({usageUnitLabel}).
           </CardDescription>
         </div>
-        <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Select
-            value={resolvedUtilityId || undefined}
-            onValueChange={setUtilityId}
-            disabled={!hasTypes}
-          >
-            <SelectTrigger className="w-[200px]" size="sm" aria-label="Expense type">
-              <SelectValue placeholder="Expense type" />
-            </SelectTrigger>
-            <SelectContent>
-              {utilityTypeDefinitions.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!lockedUtilityId ? (
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Select
+              value={resolvedUtilityId || undefined}
+              onValueChange={setUtilityId}
+              disabled={!hasTypes}
+            >
+              <SelectTrigger className="w-[200px]" size="sm" aria-label="Expense type">
+                <SelectValue placeholder="Expense type" />
+              </SelectTrigger>
+              <SelectContent>
+                {utilityTypeDefinitions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent>
         {!hasTypes ? (
