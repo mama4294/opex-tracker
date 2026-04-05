@@ -134,6 +134,7 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
         ) : sankeyData ? (
           <div className="h-[min(420px,70vh)] w-full min-h-[320px] min-w-0 overflow-x-auto">
             <div className="h-full min-h-[320px] min-w-[700px]">
+              {/* Nivo default linkBlendMode is multiply — invisible on dark card backgrounds */}
               <ResponsiveSankey
               data={sankeyData}
               margin={{ top: 20, right: 140, bottom: 20, left: 200 }}
@@ -148,6 +149,7 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
               nodeBorderWidth={0}
               linkOpacity={0.45}
               linkHoverOpacity={0.7}
+              linkBlendMode="normal"
               enableLinkGradient={true}
               enableLabels={true}
               labelPadding={20}
