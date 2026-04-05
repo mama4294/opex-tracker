@@ -74,18 +74,24 @@ function costLineKind(category: string): CostLineKind {
   return "other";
 }
 
-/** Mean of (cost ÷ usage) over months where usage &gt; 0. */
-function meanMonthlyUnitRate(
+/**
+ * Total cost ÷ total usage for the year (same denominator for variable/fixed/taxes).
+ * Usage-weighted; not a simple average of monthly unit costs.
+ */
+function yearlyBlendedUnitRate(
   costByMonth: number[],
   usageByMonth: number[],
 ): number | null {
-  const rates: number[] = [];
+  let totalCost = 0;
+  let totalUsage = 0;
   for (let i = 0; i < 12; i++) {
-    const u = usageByMonth[i];
-    if (u > 0) rates.push(costByMonth[i] / u);
+    totalCost += costByMonth[i];
+    totalUsage += usageByMonth[i];
   }
-  if (rates.length === 0) return null;
-  return rates.reduce((s, v) => s + v, 0) / rates.length;
+  if (totalUsage <= 0 || !Number.isFinite(totalCost) || !Number.isFinite(totalUsage)) {
+    return null;
+  }
+  return totalCost / totalUsage;
 }
 
 type AvgMonthlyUnitRow = {
@@ -175,12 +181,12 @@ export function OverviewContent() {
         badgeColor: def.badgeColor,
         badgeFallbackIndex: defIndex,
         monthsWithData,
-        total: meanMonthlyUnitRate(totalCostByMonth, usageByMonth),
-        variable: meanMonthlyUnitRate(variableByMonth, usageByMonth),
-        fixed: meanMonthlyUnitRate(fixedByMonth, usageByMonth),
-        taxes: meanMonthlyUnitRate(taxesByMonth, usageByMonth),
+        total: yearlyBlendedUnitRate(totalCostByMonth, usageByMonth),
+        variable: yearlyBlendedUnitRate(variableByMonth, usageByMonth),
+        fixed: yearlyBlendedUnitRate(fixedByMonth, usageByMonth),
+        taxes: yearlyBlendedUnitRate(taxesByMonth, usageByMonth),
         other: hadOtherCost
-          ? meanMonthlyUnitRate(otherByMonth, usageByMonth)
+          ? yearlyBlendedUnitRate(otherByMonth, usageByMonth)
           : null,
       };
     });
@@ -272,13 +278,14 @@ export function OverviewContent() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
-            Average monthly unit cost by expense type
+            Blended unit cost by expense type
           </CardTitle>
           <CardDescription>
-            For {year}, mean of monthly cost ÷ usage (by billing period start).
-            Only months with usage for that type are included. Variable, fixed,
-            and taxes use each line&apos;s category; each figure is averaged
-            across those months separately (so they may not sum to Total).
+            For {year}, total cost ÷ total usage (by billing period start). This
+            weights months by consumption instead of averaging monthly unit
+            rates. Variable, fixed, and taxes use each line&apos;s category; the
+            component $/unit columns sum to Total when every dollar is
+            categorized.
           </CardDescription>
         </CardHeader>
         <CardContent>
