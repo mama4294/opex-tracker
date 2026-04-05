@@ -92,16 +92,15 @@ export function ConsumptionChart({
       const i = p.month - 1;
       usageByMonth[i] += entry.usage;
     }
-    let max = 0;
     const data = MONTH_SHORT.map((label, i) => {
       const u = usageByMonth[i];
-      max = Math.max(max, u);
       return {
         month: label,
         monthIndex: i + 1,
         usage: u,
       };
     });
+    const max = data.reduce((m, d) => Math.max(m, d.usage), 0);
     return { chartData: data, maxUsage: max };
   }, [utilityEntries, resolvedUtilityId, year]);
 

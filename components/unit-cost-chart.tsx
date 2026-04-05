@@ -94,10 +94,8 @@ export function UnitCostChart({
       costByMonth[i] += entryTotalCost(entry);
       usageByMonth[i] += entry.usage;
     }
-    let max = 0;
     const data = MONTH_SHORT.map((label, i) => {
       const u = weightedUnitCost(costByMonth[i], usageByMonth[i]);
-      if (u != null) max = Math.max(max, u);
       return {
         month: label,
         monthIndex: i + 1,
@@ -106,6 +104,11 @@ export function UnitCostChart({
         monthUsage: usageByMonth[i],
       };
     });
+    const max = data.reduce((m, d) => {
+      const u = d.unitCost;
+      if (u == null || !Number.isFinite(u)) return m;
+      return Math.max(m, u);
+    }, 0);
     return { chartData: data, maxUnitCost: max };
   }, [utilityEntries, resolvedUtilityId, year]);
 

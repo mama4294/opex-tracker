@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ConsumptionChart } from "@/components/consumption-chart";
 import { CostChart } from "@/components/cost-chart";
@@ -37,19 +37,18 @@ export function UtilitiesContent() {
     return [...ys].sort((a, b) => b - a);
   }, [utilityEntries]);
 
-  useEffect(() => {
-    if (yearOptions.length > 0 && !yearOptions.includes(year)) {
-      setYear(yearOptions[0]);
-    }
-  }, [yearOptions, year]);
+  const displayYear = useMemo(() => {
+    if (yearOptions.length === 0) return year;
+    return yearOptions.includes(year) ? year : yearOptions[0];
+  }, [year, yearOptions]);
 
-  /** Total cost ÷ total usage for each utility in `year` (billing period start). */
+  /** Total cost ÷ total usage for each utility in `displayYear` (billing period start). */
   const yearlyAvgUnitCostByUtilityId = useMemo(() => {
     const totalCost: Record<string, number> = {};
     const totalUsage: Record<string, number> = {};
     for (const entry of utilityEntries) {
       const p = parseBillingYearMonth(entry.dateStart);
-      if (!p || p.year !== year) continue;
+      if (!p || p.year !== displayYear) continue;
       const id = entry.utility;
       totalCost[id] = (totalCost[id] ?? 0) + entryTotalCost(entry);
       totalUsage[id] = (totalUsage[id] ?? 0) + entry.usage;
@@ -66,7 +65,7 @@ export function UtilitiesContent() {
         u > 0 && Number.isFinite(c) && Number.isFinite(u) ? c / u : null;
     }
     return out;
-  }, [utilityEntries, year]);
+  }, [utilityEntries, displayYear]);
 
   return (
     <div className="container mx-auto max-w-4xl space-y-10 px-4 py-8">
@@ -86,7 +85,7 @@ export function UtilitiesContent() {
             Year
           </span>
           <Select
-            value={String(year)}
+            value={String(displayYear)}
             onValueChange={(v) => setYear(Number(v))}
             aria-labelledby="utilities-year-label"
           >
@@ -156,16 +155,16 @@ export function UtilitiesContent() {
                       </span>
                     ) : (
                       <span className="text-muted-foreground">
-                        No usage in {year}
+                        No usage in {displayYear}
                       </span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="space-y-6">
-                <CostChart year={year} lockedUtilityId={def.id} />
-                <ConsumptionChart year={year} lockedUtilityId={def.id} />
-                <UnitCostChart year={year} lockedUtilityId={def.id} />
+                <CostChart year={displayYear} lockedUtilityId={def.id} />
+                <ConsumptionChart year={displayYear} lockedUtilityId={def.id} />
+                <UnitCostChart year={displayYear} lockedUtilityId={def.id} />
               </div>
             </section>
           );

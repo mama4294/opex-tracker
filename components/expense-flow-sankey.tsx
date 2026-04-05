@@ -19,7 +19,9 @@ import { useStore } from "@/store/useStore";
 
 const ANNUAL_ID = "annual";
 
-function costLineKind(category: string): "variable" | "fixed" | "taxes" | "other" {
+function costLineKind(
+  category: string,
+): "variable" | "fixed" | "taxes" | "other" {
   const c = category.trim().toLowerCase();
   if (c === "variable") return "variable";
   if (c === "fixed") return "fixed";
@@ -33,7 +35,11 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
 
   const { sankeyData, labelById, empty } = useMemo(() => {
     if (utilityTypeDefinitions.length === 0) {
-      return { sankeyData: null, labelById: {} as Record<string, string>, empty: "no-types" as const };
+      return {
+        sankeyData: null,
+        labelById: {} as Record<string, string>,
+        empty: "no-types" as const,
+      };
     }
 
     const totalByUtility: Record<string, number> = {};
@@ -60,7 +66,11 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
 
     const yearTotal = Object.values(totalByUtility).reduce((a, b) => a + b, 0);
     if (yearTotal <= 0) {
-      return { sankeyData: null, labelById: {} as Record<string, string>, empty: "no-costs" as const };
+      return {
+        sankeyData: null,
+        labelById: {} as Record<string, string>,
+        empty: "no-costs" as const,
+      };
     }
 
     const links: { source: string; target: string; value: number }[] = [];
@@ -102,7 +112,11 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
     const nodes = [...nodeIds].map((id) => ({ id }));
 
     if (links.length === 0 || nodes.length < 2) {
-      return { sankeyData: null, labelById: labelMap, empty: "no-costs" as const };
+      return {
+        sankeyData: null,
+        labelById: labelMap,
+        empty: "no-costs" as const,
+      };
     }
 
     return {
@@ -118,8 +132,7 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
         <CardTitle className="text-base">Expense flow</CardTitle>
         <CardDescription>
           How {year} costs by expense type roll up to annual total, then split
-          by line-item category (variable, fixed, taxes; other categories shown
-          as Other when present).
+          by line-item category.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -136,49 +149,49 @@ export function ExpenseFlowSankey({ year }: { year: number }) {
             <div className="h-full min-h-[320px] min-w-[700px]">
               {/* Nivo default linkBlendMode is multiply — invisible on dark card backgrounds */}
               <ResponsiveSankey
-              data={sankeyData}
-              margin={{ top: 20, right: 140, bottom: 20, left: 200 }}
-              align="justify"
-              sort="input"
-              layout="horizontal"
-              nodeOpacity={1}
-              nodeHoverOpacity={1}
-              nodeThickness={12}
-              nodeSpacing={24}
-              nodeInnerPadding={4}
-              nodeBorderWidth={0}
-              linkOpacity={0.45}
-              linkHoverOpacity={0.7}
-              linkBlendMode="normal"
-              enableLinkGradient={true}
-              enableLabels={true}
-              labelPadding={20}
-              labelPosition="outside"
-              labelOrientation="horizontal"
-              label={(node) => labelById[node.id] ?? node.id}
-              valueFormat={(v) =>
-                formatWholeDollars(typeof v === "number" ? v : Number(v))
-              }
-              theme={{
-                labels: {
-                  text: {
-                    fontSize: 12,
-                    fill: "var(--foreground)",
-                    fontWeight: 500,
+                data={sankeyData}
+                margin={{ top: 20, right: 140, bottom: 20, left: 200 }}
+                align="justify"
+                sort="input"
+                layout="horizontal"
+                nodeOpacity={1}
+                nodeHoverOpacity={1}
+                nodeThickness={12}
+                nodeSpacing={24}
+                nodeInnerPadding={4}
+                nodeBorderWidth={0}
+                linkOpacity={0.45}
+                linkHoverOpacity={0.7}
+                linkBlendMode="normal"
+                enableLinkGradient={true}
+                enableLabels={true}
+                labelPadding={20}
+                labelPosition="outside"
+                labelOrientation="horizontal"
+                label={(node) => labelById[node.id] ?? node.id}
+                valueFormat={(v) =>
+                  formatWholeDollars(typeof v === "number" ? v : Number(v))
+                }
+                theme={{
+                  labels: {
+                    text: {
+                      fontSize: 12,
+                      fill: "var(--foreground)",
+                      fontWeight: 500,
+                    },
                   },
-                },
-                tooltip: {
-                  container: {
-                    background: "var(--popover)",
-                    color: "var(--popover-foreground)",
-                    fontSize: 12,
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--border)",
+                  tooltip: {
+                    container: {
+                      background: "var(--popover)",
+                      color: "var(--popover-foreground)",
+                      fontSize: 12,
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--border)",
+                    },
                   },
-                },
-              }}
-              colors={{ scheme: "set2" }}
-            />
+                }}
+                colors={{ scheme: "set2" }}
+              />
             </div>
           </div>
         ) : null}

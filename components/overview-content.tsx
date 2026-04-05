@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Receipt } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -126,24 +123,23 @@ export function OverviewContent() {
     return [...ys].sort((a, b) => b - a);
   }, [utilityEntries]);
 
-  useEffect(() => {
-    if (yearOptions.length > 0 && !yearOptions.includes(year)) {
-      setYear(yearOptions[0]);
-    }
-  }, [yearOptions, year]);
+  const displayYear = useMemo(() => {
+    if (yearOptions.length === 0) return year;
+    return yearOptions.includes(year) ? year : yearOptions[0];
+  }, [year, yearOptions]);
 
   const annualTotalRaw = useMemo(() => {
     let sum = 0;
     for (const entry of utilityEntries) {
       const p = parseBillingYearMonth(entry.dateStart);
-      if (!p || p.year !== year) continue;
+      if (!p || p.year !== displayYear) continue;
       sum += entryTotalCost(entry);
     }
     return sum;
-  }, [utilityEntries, year]);
+  }, [utilityEntries, displayYear]);
 
   const annualTotalRounded = Math.round(annualTotalRaw);
-  const avgMonths = monthsForAverageMonthly(year);
+  const avgMonths = monthsForAverageMonthly(displayYear);
   const averageMonthlyRounded = Math.round(annualTotalRaw / avgMonths);
 
   const avgMonthlyUnitByType = useMemo((): AvgMonthlyUnitRow[] => {
@@ -158,7 +154,7 @@ export function OverviewContent() {
       for (const entry of utilityEntries) {
         if (entry.utility !== def.id) continue;
         const p = parseBillingYearMonth(entry.dateStart);
-        if (!p || p.year !== year) continue;
+        if (!p || p.year !== displayYear) continue;
         const mi = p.month - 1;
         usageByMonth[mi] += entry.usage;
         totalCostByMonth[mi] += entryTotalCost(entry);
@@ -191,7 +187,7 @@ export function OverviewContent() {
           : null,
       };
     });
-  }, [utilityEntries, utilityTypeDefinitions, year]);
+  }, [utilityEntries, utilityTypeDefinitions, displayYear]);
 
   const hasAnyAvgUnitData = avgMonthlyUnitByType.some((r) => r.total != null);
   const showOtherColumn = avgMonthlyUnitByType.some((r) => r.other != null);
@@ -229,7 +225,7 @@ export function OverviewContent() {
             Year
           </span>
           <Select
-            value={String(year)}
+            value={String(displayYear)}
             onValueChange={(v) => setYear(Number(v))}
             aria-labelledby="overview-year-label"
           >
@@ -252,7 +248,7 @@ export function OverviewContent() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Annual expenses to date</CardTitle>
             <CardDescription>
-              Total recorded cost in {year} (by billing period start date).
+              Total recorded cost in {displayYear} (by billing period start date).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -266,7 +262,9 @@ export function OverviewContent() {
             <CardTitle className="text-base">
               Average monthly expenses
             </CardTitle>
-            <CardDescription>{averageMonthlyDescription(year)}</CardDescription>
+            <CardDescription>
+              {averageMonthlyDescription(displayYear)}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold tabular-nums">
@@ -276,7 +274,7 @@ export function OverviewContent() {
         </Card>
       </div>
 
-      <OverviewUtilityPieChart year={year} />
+      <OverviewUtilityPieChart year={displayYear} />
 
       <Card>
         <CardHeader className="pb-2">
@@ -284,7 +282,8 @@ export function OverviewContent() {
             Blended unit cost by expense type
           </CardTitle>
           <CardDescription>
-            For {year}, total cost ÷ total usage (by billing period start). This
+            For {displayYear}, total cost ÷ total usage (by billing period start).
+            This
             weights months by consumption instead of averaging monthly unit
             rates. Variable, fixed, and taxes use each line&apos;s category; the
             component $/unit columns sum to Total when every dollar is
@@ -298,7 +297,7 @@ export function OverviewContent() {
             </p>
           ) : !hasAnyAvgUnitData ? (
             <p className="text-sm text-muted-foreground">
-              No usage data in {year} to compute unit costs.
+              No usage data in {displayYear} to compute unit costs.
             </p>
           ) : (
             <div className="rounded-md border">
@@ -376,13 +375,13 @@ export function OverviewContent() {
         </CardContent>
       </Card>
 
-      <ExpenseFlowSankey year={year} />
+      <ExpenseFlowSankey year={displayYear} />
 
-      <CostChart year={year} />
+      <CostChart year={displayYear} />
 
-      <UnitCostChart year={year} />
+      <UnitCostChart year={displayYear} />
 
-      <ConsumptionChart year={year} />
+      <ConsumptionChart year={displayYear} />
     </div>
   );
 }
