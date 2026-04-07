@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { LabelList, Pie, PieChart } from "recharts";
+import { Pie, PieChart } from "recharts";
 
 import {
   Card,
@@ -24,9 +24,10 @@ import {
 } from "@/lib/utils";
 import { useStore } from "@/store/useStore";
 
-function formatPercentOfWhole(part: number, whole: number): string {
-  if (whole <= 0 || !Number.isFinite(part)) return "0%";
-  const pct = (part / whole) * 100;
+/** Percent of whole for slice labels (matches tooltip semantics). */
+function percentOfTotal(amount: number, total: number): string {
+  if (total <= 0 || !Number.isFinite(amount)) return "0%";
+  const pct = (amount / total) * 100;
   if (!Number.isFinite(pct)) return "0%";
   return `${pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
@@ -38,66 +39,67 @@ function colorForBadgeColor(badgeColor: string): string {
   return `var(--${badgeColor})`;
 }
 
+type PieRow = {
+  utilityKey: string;
+  utilityName: string;
+  amount: number;
+  fill: string;
+  sliceColor: string;
+};
+
 export function OverviewUtilityPieChart({ year }: { year: number }) {
   const utilityEntries = useStore((s) => s.utilityEntries);
   const utilityTypeDefinitions = useStore((s) => s.utilityTypeDefinitions);
 
-  const { chartData, chartConfig, totalForChart, hasSlices } = useMemo(() => {
-    const defIds = new Set(utilityTypeDefinitions.map((d) => d.id));
-    const totals: Record<string, number> = {};
-    for (const def of utilityTypeDefinitions) {
-      totals[def.id] = 0;
-    }
-    for (const entry of utilityEntries) {
-      if (!defIds.has(entry.utility)) continue;
-      const p = parseBillingYearMonth(entry.dateStart);
-      if (!p || p.year !== year) continue;
-      totals[entry.utility] += entryTotalCost(entry);
-    }
+  const { chartData, legendRows, chartConfig, totalForChart, hasSlices } =
+    useMemo(() => {
+      const defIds = new Set(utilityTypeDefinitions.map((d) => d.id));
+      const totals: Record<string, number> = {};
+      for (const def of utilityTypeDefinitions) {
+        totals[def.id] = 0;
+      }
+      for (const entry of utilityEntries) {
+        if (!defIds.has(entry.utility)) continue;
+        const p = parseBillingYearMonth(entry.dateStart);
+        if (!p || p.year !== year) continue;
+        totals[entry.utility] += entryTotalCost(entry);
+      }
 
-    const config: ChartConfig = {
-      amount: { label: "Amount" },
-    };
-    const rows: {
-      utilityKey: string;
-      utilityName: string;
-      amount: number;
-      fill: string;
-      sliceColor: string;
-    }[] = [];
-
-    utilityTypeDefinitions.forEach((def, defIndex) => {
-      const amt = totals[def.id] ?? 0;
-      if (amt <= 0) return;
-      const key = `u${defIndex}`;
-      const resolved = colorForBadgeColor(def.badgeColor);
-      config[key] = {
-        label: def.label,
-        color: resolved,
+      const config: ChartConfig = {
+        amount: { label: "Amount" },
       };
-      rows.push({
-        utilityKey: key,
-        utilityName: def.label,
-        amount: amt,
-        fill: `var(--color-${key})`,
-        sliceColor: resolved,
+      const rows: PieRow[] = [];
+
+      utilityTypeDefinitions.forEach((def, defIndex) => {
+        const amt = totals[def.id] ?? 0;
+        if (amt <= 0) return;
+        const key = `u${defIndex}`;
+        const resolved = colorForBadgeColor(def.badgeColor);
+        config[key] = {
+          label: def.label,
+          color: resolved,
+        };
+        rows.push({
+          utilityKey: key,
+          utilityName: def.label,
+          amount: amt,
+          fill: `var(--color-${key})`,
+          sliceColor: resolved,
+        });
       });
-    });
 
-    const totalForChart = rows.reduce((s, d) => s + d.amount, 0);
+      const totalForChart = rows.reduce((s, d) => s + d.amount, 0);
 
-    const chartData = rows.map((d) => ({
-      ...d,
-      sliceLabel: `${d.utilityName} ${formatPercentOfWhole(d.amount, totalForChart)}`,
-    }));
+      const legendRows = [...rows].sort((a, b) => b.amount - a.amount);
 
-    return {
-      chartData,
-      chartConfig: config,
-      totalForChart,
-      hasSlices: chartData.length > 0,
-    };
-  }, [utilityEntries, utilityTypeDefinitions, year]);
+      return {
+        chartData: rows,
+        legendRows,
+        chartConfig: config,
+        totalForChart,
+        hasSlices: rows.length > 0,
+      };
+    }, [utilityEntries, utilityTypeDefinitions, year]);
 
   return (
     <Card className="flex flex-col">
@@ -118,76 +120,92 @@ export function OverviewUtilityPieChart({ year }: { year: number }) {
             No recorded costs in {year} to chart.
           </p>
         ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto aspect-square max-h-[280px] w-full pb-0 [&_.recharts-pie-label-text]:fill-foreground"
-          >
-            <PieChart>
-              <ChartTooltip
-                cursor={false}
-                content={
-                  <ChartTooltipContent
-                    hideLabel
-                    nameKey="utilityKey"
-                    formatter={(value, _name, item, _index, payload) => {
-                      const row = (payload ??
-                        (
-                          item as {
-                            payload?: {
-                              utilityName?: string;
-                              sliceColor?: string;
-                              amount?: number;
-                            };
-                          }
-                        ).payload) as {
-                        utilityName?: string;
-                        sliceColor?: string;
-                        amount?: number;
-                      } | null;
-                      const label = row?.utilityName ?? "";
-                      const swatch =
-                        row?.sliceColor ?? "var(--muted-foreground)";
-                      const amt = Number(value);
-                      return (
-                        <div className="flex w-full min-w-52 items-center justify-between gap-3">
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-border/60"
-                              style={{ backgroundColor: swatch }}
-                              aria-hidden
-                            />
-                            <span className="truncate font-medium text-foreground">
-                              {label}
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
+            <ChartContainer
+              config={chartConfig}
+              className="mx-auto aspect-square max-h-[260px] w-full shrink-0 sm:max-w-[min(260px,100%)] sm:pb-0"
+            >
+              <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                <ChartTooltip
+                  cursor={false}
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      nameKey="utilityKey"
+                      formatter={(value, _name, item, _index, payload) => {
+                        const row = (payload ??
+                          (
+                            item as {
+                              payload?: {
+                                utilityName?: string;
+                                sliceColor?: string;
+                                amount?: number;
+                              };
+                            }
+                          ).payload) as {
+                          utilityName?: string;
+                          sliceColor?: string;
+                          amount?: number;
+                        } | null;
+                        const label = row?.utilityName ?? "";
+                        const swatch =
+                          row?.sliceColor ?? "var(--muted-foreground)";
+                        const amt = Number(value);
+                        return (
+                          <div className="flex w-full min-w-52 items-center justify-between gap-3">
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-border/60"
+                                style={{ backgroundColor: swatch }}
+                                aria-hidden
+                              />
+                              <span className="truncate font-medium text-foreground">
+                                {label}
+                              </span>
+                            </div>
+                            <span className="shrink-0 font-medium tabular-nums text-foreground">
+                              ${formatMoney(amt)}
                             </span>
                           </div>
-                          <span className="shrink-0 font-medium tabular-nums text-foreground">
-                            ${formatMoney(amt)}
-                          </span>
-                        </div>
-                      );
-                    }}
-                  />
-                }
-              />
-              <Pie
-                data={chartData}
-                dataKey="amount"
-                nameKey="utilityKey"
-                stroke="var(--background)"
-                strokeWidth={2}
-                labelLine={{
-                  stroke: "var(--border)",
-                  strokeWidth: 1,
-                }}
-              >
-                <LabelList
-                  dataKey="sliceLabel"
-                  position="outside"
-                  className="text-[11px] font-medium fill-foreground"
+                        );
+                      }}
+                    />
+                  }
                 />
-              </Pie>
-            </PieChart>
-          </ChartContainer>
+                <Pie
+                  data={chartData}
+                  dataKey="amount"
+                  nameKey="utilityName"
+                  isAnimationActive={false}
+                  stroke="var(--background)"
+                  strokeWidth={2}
+                />
+              </PieChart>
+            </ChartContainer>
+            <ul
+              className="w-full min-w-0 flex-1 space-y-2 text-sm sm:max-w-sm"
+              aria-label="Expense share by type"
+            >
+              {legendRows.map((row) => (
+                <li
+                  key={row.utilityKey}
+                  className="flex items-baseline gap-3 border-b border-border/50 pb-2 last:border-b-0 last:pb-0"
+                >
+                  <span
+                    className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-border/60"
+                    style={{ backgroundColor: row.sliceColor }}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 font-medium leading-snug text-foreground">
+                    {row.utilityName}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {percentOfTotal(row.amount, totalForChart)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </CardContent>
       {hasSlices ? (
