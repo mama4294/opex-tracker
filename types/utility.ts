@@ -93,16 +93,21 @@ export function utilityBadgeClassForColorId(
   return UTILITY_BADGE_COLOR_PRESETS[i].badgeClass;
 }
 
-type UtilityTypeDefinitionInput = Omit<UtilityTypeDefinition, "badgeColor"> & {
+type UtilityTypeDefinitionInput = Omit<
+  UtilityTypeDefinition,
+  "badgeColor" | "notes"
+> & {
   badgeColor?: string;
+  notes?: string;
 };
 
-/** Ensures every definition has a valid `badgeColor`. */
+/** Ensures every definition has a valid `badgeColor` and `notes`. */
 export function normalizeUtilityTypeDefinitions(
   defs: UtilityTypeDefinitionInput[],
 ): UtilityTypeDefinition[] {
   return defs.map((d, i) => ({
     ...d,
+    notes: typeof d.notes === "string" ? d.notes : "",
     badgeColor: isValidUtilityBadgeColorId(d.badgeColor ?? "")
       ? d.badgeColor!
       : UTILITY_BADGE_COLOR_PRESETS[
@@ -118,6 +123,8 @@ export interface UtilityTypeDefinition {
   defaultUsageUnit: string;
   /** Key from `UTILITY_BADGE_COLOR_PRESETS` for expense table badges. */
   badgeColor: string;
+  /** Optional context for reports (e.g. what is included in this category). */
+  notes: string;
 }
 
 /** Default types for new projects and legacy files without `utilityTypeDefinitions`. */
@@ -127,24 +134,28 @@ export const DEFAULT_UTILITY_TYPE_DEFINITIONS: UtilityTypeDefinition[] = [
     label: "Electricity",
     defaultUsageUnit: "kWh",
     badgeColor: "electricity",
+    notes: "",
   },
   {
     id: "water",
     label: "Water",
     defaultUsageUnit: "gal",
     badgeColor: "water",
+    notes: "",
   },
   {
     id: "natural_gas",
     label: "Natural gas",
     defaultUsageUnit: "MMBtu",
     badgeColor: "gas",
+    notes: "",
   },
   {
     id: "trash",
     label: "Trash",
     defaultUsageUnit: "tons",
     badgeColor: "chart-3",
+    notes: "",
   },
 ];
 

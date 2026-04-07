@@ -103,9 +103,9 @@ export function SettingsContent() {
         <CardHeader>
           <CardTitle className="text-base">Expense types</CardTitle>
           <CardDescription>
-            Names, default usage units, and table badge colors. The internal ID
-            is set when you add a type (from the name) and is stored in your
-            project file.
+            Names, default usage units, optional notes, and table badge colors.
+            The internal ID is set when you add a type (from the name) and is
+            stored in your project file.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -172,6 +172,26 @@ export function SettingsContent() {
                         </Button>
                       </div>
                     </div>
+                    <Field className="w-full">
+                      <FieldLabel htmlFor={`ut-notes-${def.id}`}>
+                        Notes
+                      </FieldLabel>
+                      <textarea
+                        id={`ut-notes-${def.id}`}
+                        rows={2}
+                        aria-describedby={`ut-notes-hint-${def.id}`}
+                        placeholder="Notes about this expense type…"
+                        value={def.notes}
+                        onChange={(e) =>
+                          updateUtilityTypeDefinition(def.id, {
+                            notes: e.target.value,
+                          })
+                        }
+                        className={cn(
+                          "flex min-h-13 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+                        )}
+                      />
+                    </Field>
                     <Field>
                       <FieldLabel id={`ut-color-label-${def.id}`}>
                         Table badge color

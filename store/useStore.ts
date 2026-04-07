@@ -106,7 +106,12 @@ interface StoreState {
   }) => void;
   updateUtilityTypeDefinition: (
     id: string,
-    patch: { label?: string; defaultUsageUnit?: string; badgeColor?: string },
+    patch: {
+      label?: string;
+      defaultUsageUnit?: string;
+      badgeColor?: string;
+      notes?: string;
+    },
   ) => void;
   removeUtilityTypeDefinition: (id: string) => boolean;
   utilityTypeEntryCount: (id: string) => number;
@@ -230,6 +235,7 @@ export const useStore = create<StoreState>((set, get) => ({
             label: trimmedLabel,
             defaultUsageUnit: trimmedUnit,
             badgeColor: UTILITY_BADGE_COLOR_PRESETS[colorIdx].id,
+            notes: "",
           },
         ],
       };
@@ -249,6 +255,7 @@ export const useStore = create<StoreState>((set, get) => ({
           UTILITY_BADGE_COLOR_PRESETS.some((p) => p.id === patch.badgeColor)
             ? { badgeColor: patch.badgeColor }
             : {}),
+          ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
         };
       }),
     })),
