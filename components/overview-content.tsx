@@ -34,7 +34,7 @@ import {
   cn,
   entryTotalCost,
   formatMoney,
-  formatWholeDollars,
+  formatWholeDollarsCompact,
   parseBillingYearMonth,
 } from "@/lib/utils";
 import { utilityBadgeClassForColorId } from "@/types/utility";
@@ -60,6 +60,23 @@ function averageMonthlyDescription(year: number, today = new Date()): string {
     month: "long",
   });
   return `Year-to-date total divided by ${m} (Jan–${through}).`;
+}
+
+function projectedAnnualDescription(year: number, today = new Date()): string {
+  const y = today.getFullYear();
+  if (year < y) {
+    return `Same as the full-year total for ${year} (year is complete).`;
+  }
+  if (year > y) {
+    return `Matches annual total for ${year} (divisor is 12 months).`;
+  }
+  const m = today.getMonth() + 1;
+  const through = new Date(year, m - 1, 1).toLocaleString("en-US", {
+    month: "long",
+  });
+  return `Average monthly expense × 12, using Jan–${through} (${m} month${
+    m === 1 ? "" : "s"
+  } of data).`;
 }
 
 type CostLineKind = "variable" | "fixed" | "taxes" | "other";
@@ -141,6 +158,9 @@ export function OverviewContent() {
   const annualTotalRounded = Math.round(annualTotalRaw);
   const avgMonths = monthsForAverageMonthly(displayYear);
   const averageMonthlyRounded = Math.round(annualTotalRaw / avgMonths);
+  const projectedAnnualRounded = Math.round(
+    avgMonths > 0 ? (annualTotalRaw * 12) / avgMonths : 0,
+  );
 
   const avgMonthlyUnitByType = useMemo((): AvgMonthlyUnitRow[] => {
     return utilityTypeDefinitions.map((def, defIndex) => {
@@ -243,32 +263,47 @@ export function OverviewContent() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="h-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Annual expenses to date</CardTitle>
-            <CardDescription>
+            <CardDescription className="min-h-18 text-pretty">
               Total recorded cost in {displayYear} (by billing period start date).
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto pt-0">
             <p className="text-3xl font-semibold tabular-nums">
-              {formatWholeDollars(annualTotalRounded)}
+              {formatWholeDollarsCompact(annualTotalRounded)}
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="h-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
               Average monthly expenses
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="min-h-18 text-pretty">
               {averageMonthlyDescription(displayYear)}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="mt-auto pt-0">
             <p className="text-3xl font-semibold tabular-nums">
-              {formatWholeDollars(averageMonthlyRounded)}
+              {formatWholeDollarsCompact(averageMonthlyRounded)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="h-full sm:col-span-2 lg:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Expected annual total
+            </CardTitle>
+            <CardDescription className="min-h-18 text-pretty">
+              {projectedAnnualDescription(displayYear)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto pt-0">
+            <p className="text-3xl font-semibold tabular-nums">
+              {formatWholeDollarsCompact(projectedAnnualRounded)}
             </p>
           </CardContent>
         </Card>

@@ -74,3 +74,33 @@ export function formatWholeDollars(n: number): string {
   const rounded = Math.round(Number.isFinite(n) ? n : 0);
   return `$${rounded.toLocaleString("en-US")}`;
 }
+
+/**
+ * Whole dollars with compact suffix (k / M / B) for large values, e.g. $1.2M, $4.5k.
+ * Values under $1k use grouped digits without cents.
+ */
+export function formatWholeDollarsCompact(n: number): string {
+  const rounded = Math.round(Number.isFinite(n) ? n : 0);
+  const sign = rounded < 0 ? "-" : "";
+  const abs = Math.abs(rounded);
+
+  if (abs < 1000) {
+    return `${sign}$${abs.toLocaleString("en-US")}`;
+  }
+
+  /** Value in tenths of the display unit (one decimal place). */
+  const fmt = (tenths: number, suffix: string) => {
+    const t = Math.round(tenths);
+    const s =
+      t % 10 === 0 ? String(t / 10) : (t / 10).toFixed(1);
+    return `${sign}$${s}${suffix}`;
+  };
+
+  if (abs < 1_000_000) {
+    return fmt(abs / 100, "k");
+  }
+  if (abs < 1_000_000_000) {
+    return fmt(abs / 100_000, "M");
+  }
+  return fmt(abs / 100_000_000, "B");
+}
